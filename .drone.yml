@@ -10,11 +10,10 @@ build:
     image: golang:$$GO_VERSION
     pull: true
     commands:
-      - go get -u github.com/axw/gocov/gocov
-      - go get -u gopkg.in/matm/v1/gocov-html
-      - go get -u github.com/cee-dub/go-junit-report
       - go get -u github.com/stretchr/testify/assert
-      - go test -v -race -coverprofile=profile.cov -covermode=count ./...
+      - go get -u github.com/go-openapi/swag
+      - go test -race
+      - go test -v -cover -coverprofile=coverage.out -covermode=count ./...
 
 notify:
   slack:
