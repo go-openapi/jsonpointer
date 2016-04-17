@@ -1,0 +1,44 @@
+clone:
+  path: github.com/go-openapi/jsonpointer
+
+matrix:
+  GO_VERSION:
+    - "1.6"
+
+build:
+  integration:
+    image: golang:$$GO_VERSION
+    pull: true
+    environment:
+      GOCOVMODE: "count"
+      GO15VENDOREXPERIMENT: "1"
+    commands:
+      - go get -u github.com/axw/gocov/gocov
+      - go get -u gopkg.in/matm/v1/gocov-html
+      - go get -u github.com/cee-dub/go-junit-report
+      - go get -u github.com/nu7hatch/gouuid
+      - go get -u github.com/stretchr/testify/assert
+      - go get -u github.com/davecgh/go-spew/spew
+      - go get -u github.com/asaskevich/govalidator
+      - go get -u github.com/naoina/denco
+      - go get -u github.com/go-swagger/scan-repo-boundary/makeplans
+      - ./hack/build-drone.sh
+      - mkdir -p dist
+      - CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -tags netgo -installsuffix netgo -o dist/swagger ./cmd/swagger
+
+notify:
+  slack:
+    channel: bots
+    webhook_url: https://hooks.slack.com/services/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
+    username: drone
+
+publish:
+  coverage:
+    server: https://coverage.vmware.run
+    token: $$GITHUB_TOKEN
+    # threshold: 70
+    # must_increase: true
+    when:
+      matrix:
+        GO_VERSION: "1.6"
+
