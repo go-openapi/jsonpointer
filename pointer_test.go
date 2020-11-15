@@ -167,6 +167,21 @@ func (p pointableImpl) JSONLookup(token string) (interface{}, error) {
 	return nil, fmt.Errorf("object has no field %q", token)
 }
 
+type pointableMap map[string]string
+
+func (p pointableMap) JSONLookup(token string) (interface{}, error) {
+	if token == "swap" {
+		return p["swapped"], nil
+	}
+
+	v, ok := p[token]
+	if ok {
+		return v, nil
+	}
+
+	return nil, fmt.Errorf("object has no key %q", token)
+}
+
 func TestPointableInterface(t *testing.T) {
 	p := &pointableImpl{"hello"}
 
@@ -177,6 +192,15 @@ func TestPointableInterface(t *testing.T) {
 	result, _, err = GetForToken(p, "something")
 	assert.Error(t, err)
 	assert.Nil(t, result)
+
+	pm := pointableMap{"swapped": "hello", "a": "world"}
+	result, _, err = GetForToken(pm, "swap")
+	assert.NoError(t, err)
+	assert.Equal(t, pm["swapped"], result)
+
+	result, _, err = GetForToken(pm, "a")
+	assert.NoError(t, err)
+	assert.Equal(t, pm["a"], result)
 }
 
 func TestGetNode(t *testing.T) {
