@@ -26,6 +26,7 @@
 package jsonpointer
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
@@ -40,6 +41,7 @@ const (
 	pointerSeparator = `/`
 
 	invalidStart = `JSON pointer must be empty or start with a "` + pointerSeparator
+	notFound     = `Can't find the pointer in the document`
 )
 
 var jsonPointableType = reflect.TypeOf(new(JSONPointable)).Elem()
@@ -361,6 +363,112 @@ func (p *Pointer) String() string {
 	pointerString := pointerSeparator + strings.Join(p.referenceTokens, pointerSeparator)
 
 	return pointerString
+}
+
+func (p *Pointer) Offset(document string) (int64, error) {
+	dec := json.NewDecoder(strings.NewReader(document))
+	var offset int64
+	for _, ttk := range p.DecodedTokens() {
+		tk, err := dec.Token()
+		if err != nil {
+			return 0, err
+		}
+		switch tk := tk.(type) {
+		case json.Delim:
+			switch tk {
+			case '{':
+				offset, err = offsetSingleObject(dec, ttk)
+				if err != nil {
+					return 0, err
+				}
+			case '[':
+				offset, err = offsetSingleArray(dec, ttk)
+				if err != nil {
+					return 0, err
+				}
+			default:
+				return 0, fmt.Errorf("invalid token %#v", tk)
+			}
+		default:
+			return 0, fmt.Errorf("invalid token %#v", tk)
+		}
+	}
+	return offset, nil
+}
+
+func offsetSingleObject(dec *json.Decoder, decodedToken string) (int64, error) {
+	for dec.More() {
+		tk, err := dec.Token()
+		if err != nil {
+			return 0, err
+		}
+		switch tk := tk.(type) {
+		case json.Delim:
+			switch tk {
+			case '{':
+				if err := drainSingle(dec); err != nil {
+					return 0, err
+				}
+			case '[':
+				if err := drainSingle(dec); err != nil {
+					return 0, err
+				}
+			}
+		case string:
+			if tk == decodedToken {
+				return dec.InputOffset(), nil
+			}
+		default:
+			return 0, fmt.Errorf("invalid token %#v", tk)
+		}
+	}
+	return 0, fmt.Errorf("token reference %q not found", decodedToken)
+}
+
+func offsetSingleArray(dec *json.Decoder, decodedToken string) (int64, error) {
+	idx, err := strconv.Atoi(decodedToken)
+	if err != nil {
+		return 0, fmt.Errorf("token reference %q is not a number: %v", decodedToken, err)
+	}
+	var i int
+	for i = 0; i < idx && dec.More(); i++ {
+		tk, err := dec.Token()
+		if err != nil {
+			return 0, err
+		}
+		switch tk := tk.(type) {
+		case json.Delim:
+			switch tk {
+			case '{':
+				if err := drainSingle(dec); err != nil {
+					return 0, err
+				}
+			case '[':
+				if err := drainSingle(dec); err != nil {
+					return 0, err
+				}
+			}
+		default:
+			// just consume the token
+		}
+	}
+	if !dec.More() {
+		return 0, fmt.Errorf("token reference %q not found", decodedToken)
+	}
+	return dec.InputOffset(), nil
+}
+
+func drainSingle(dec *json.Decoder) error {
+	for dec.More() {
+		if _, err := dec.Token(); err != nil {
+			return err
+		}
+	}
+	// Consumes the ending delim
+	if _, err := dec.Token(); err != nil {
+		return err
+	}
+	return nil
 }
 
 // Specific JSON pointer encoding here
