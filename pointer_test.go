@@ -611,6 +611,12 @@ func TestOffset(t *testing.T) {
 			offset: 14,
 		},
 		{
+			name:   "complex object key",
+			ptr:    "/paths/~1p~1{}/get",
+			input:  `{"paths": {"foo": {"bar": 123, "baz": {}}, "/p/{}": {"get": {}}}}`,
+			offset: 58,
+		},
+		{
 			name:   "array index",
 			ptr:    "/0/1",
 			input:  `[[1,2], [3,4]]`,

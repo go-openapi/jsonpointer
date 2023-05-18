@@ -448,8 +448,6 @@ func offsetSingleArray(dec *json.Decoder, decodedToken string) (int64, error) {
 					return 0, err
 				}
 			}
-		default:
-			// just consume the token
 		}
 	}
 	if !dec.More() {
@@ -458,10 +456,26 @@ func offsetSingleArray(dec *json.Decoder, decodedToken string) (int64, error) {
 	return dec.InputOffset(), nil
 }
 
+// drainSingle drains a single level of object or array.
+// The decoder has to guarantee the begining delim (i.e. '{' or '[') has been consumed.
 func drainSingle(dec *json.Decoder) error {
 	for dec.More() {
-		if _, err := dec.Token(); err != nil {
+		tk, err := dec.Token()
+		if err != nil {
 			return err
+		}
+		switch tk := tk.(type) {
+		case json.Delim:
+			switch tk {
+			case '{':
+				if err := drainSingle(dec); err != nil {
+					return err
+				}
+			case '[':
+				if err := drainSingle(dec); err != nil {
+					return err
+				}
+			}
 		}
 	}
 	// Consumes the ending delim
