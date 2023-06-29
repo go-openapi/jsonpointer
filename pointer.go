@@ -81,9 +81,7 @@ func (p *Pointer) parse(jsonPointerString string) error {
 			err = errors.New(invalidStart)
 		} else {
 			referenceTokens := strings.Split(jsonPointerString, pointerSeparator)
-			for _, referenceToken := range referenceTokens[1:] {
-				p.referenceTokens = append(p.referenceTokens, referenceToken)
-			}
+			 p.referenceTokens = append(p.referenceTokens, referenceTokens[1:]...)
 		}
 	}
 
