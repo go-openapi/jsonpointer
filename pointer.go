@@ -50,13 +50,13 @@ var jsonSetableType = reflect.TypeOf(new(JSONSetable)).Elem()
 // JSONPointable is an interface for structs to implement when they need to customize the
 // json pointer process
 type JSONPointable interface {
-	JSONLookup(string) (interface{}, error)
+	JSONLookup(string) (any, error)
 }
 
 // JSONSetable is an interface for structs to implement when they need to customize the
 // json pointer process
 type JSONSetable interface {
-	JSONSet(string, interface{}) error
+	JSONSet(string, any) error
 }
 
 // New creates a new json pointer for the given string
@@ -83,7 +83,7 @@ func (p *Pointer) parse(jsonPointerString string) error {
 			err = errors.New(invalidStart)
 		} else {
 			referenceTokens := strings.Split(jsonPointerString, pointerSeparator)
-			 p.referenceTokens = append(p.referenceTokens, referenceTokens[1:]...)
+			p.referenceTokens = append(p.referenceTokens, referenceTokens[1:]...)
 		}
 	}
 
@@ -91,26 +91,26 @@ func (p *Pointer) parse(jsonPointerString string) error {
 }
 
 // Get uses the pointer to retrieve a value from a JSON document
-func (p *Pointer) Get(document interface{}) (interface{}, reflect.Kind, error) {
+func (p *Pointer) Get(document any) (any, reflect.Kind, error) {
 	return p.get(document, swag.DefaultJSONNameProvider)
 }
 
 // Set uses the pointer to set a value from a JSON document
-func (p *Pointer) Set(document interface{}, value interface{}) (interface{}, error) {
+func (p *Pointer) Set(document any, value any) (any, error) {
 	return document, p.set(document, value, swag.DefaultJSONNameProvider)
 }
 
 // GetForToken gets a value for a json pointer token 1 level deep
-func GetForToken(document interface{}, decodedToken string) (interface{}, reflect.Kind, error) {
+func GetForToken(document any, decodedToken string) (any, reflect.Kind, error) {
 	return getSingleImpl(document, decodedToken, swag.DefaultJSONNameProvider)
 }
 
 // SetForToken gets a value for a json pointer token 1 level deep
-func SetForToken(document interface{}, decodedToken string, value interface{}) (interface{}, error) {
+func SetForToken(document any, decodedToken string, value any) (any, error) {
 	return document, setSingleImpl(document, value, decodedToken, swag.DefaultJSONNameProvider)
 }
 
-func getSingleImpl(node interface{}, decodedToken string, nameProvider *swag.NameProvider) (interface{}, reflect.Kind, error) {
+func getSingleImpl(node any, decodedToken string, nameProvider *swag.NameProvider) (any, reflect.Kind, error) {
 	rValue := reflect.Indirect(reflect.ValueOf(node))
 	kind := rValue.Kind()
 
@@ -159,7 +159,7 @@ func getSingleImpl(node interface{}, decodedToken string, nameProvider *swag.Nam
 
 }
 
-func setSingleImpl(node, data interface{}, decodedToken string, nameProvider *swag.NameProvider) error {
+func setSingleImpl(node, data any, decodedToken string, nameProvider *swag.NameProvider) error {
 	rValue := reflect.Indirect(reflect.ValueOf(node))
 
 	if ns, ok := node.(JSONSetable); ok { // pointer impl
@@ -210,7 +210,7 @@ func setSingleImpl(node, data interface{}, decodedToken string, nameProvider *sw
 
 }
 
-func (p *Pointer) get(node interface{}, nameProvider *swag.NameProvider) (interface{}, reflect.Kind, error) {
+func (p *Pointer) get(node any, nameProvider *swag.NameProvider) (any, reflect.Kind, error) {
 
 	if nameProvider == nil {
 		nameProvider = swag.DefaultJSONNameProvider
@@ -241,7 +241,7 @@ func (p *Pointer) get(node interface{}, nameProvider *swag.NameProvider) (interf
 	return node, kind, nil
 }
 
-func (p *Pointer) set(node, data interface{}, nameProvider *swag.NameProvider) error {
+func (p *Pointer) set(node, data any, nameProvider *swag.NameProvider) error {
 	knd := reflect.ValueOf(node).Kind()
 
 	if knd != reflect.Ptr && knd != reflect.Struct && knd != reflect.Map && knd != reflect.Slice && knd != reflect.Array {

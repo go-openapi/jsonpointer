@@ -52,7 +52,7 @@ const (
 }`
 )
 
-var testDocumentJSON interface{}
+var testDocumentJSON any
 
 type testStructJSON struct {
 	Foo []string `json:"foo"`
@@ -67,7 +67,7 @@ type testStructJSON struct {
 	} `json:"obj"`
 }
 
-type aliasedMap map[string]interface{}
+type aliasedMap map[string]any
 
 var testStructJSONDoc testStructJSON
 var testStructJSONPtr *testStructJSON
@@ -109,7 +109,7 @@ func TestFullDocument(t *testing.T) {
 		t.Errorf("Get(%v) error %v", in, err.Error())
 	}
 
-	if len(result.(map[string]interface{})) != TestDocumentNBItems {
+	if len(result.(map[string]any)) != TestDocumentNBItems {
 		t.Errorf("Get(%v) = %v, expect full document", in, result)
 	}
 
@@ -118,7 +118,7 @@ func TestFullDocument(t *testing.T) {
 		t.Errorf("Get(%v) error %v", in, err.Error())
 	}
 
-	if len(result.(map[string]interface{})) != TestDocumentNBItems {
+	if len(result.(map[string]any)) != TestDocumentNBItems {
 		t.Errorf("Get(%v) = %v, expect full document", in, result)
 	}
 }
@@ -160,7 +160,7 @@ type pointableImpl struct {
 	a string
 }
 
-func (p pointableImpl) JSONLookup(token string) (interface{}, error) {
+func (p pointableImpl) JSONLookup(token string) (any, error) {
 	if token == "some" {
 		return p.a, nil
 	}
@@ -169,7 +169,7 @@ func (p pointableImpl) JSONLookup(token string) (interface{}, error) {
 
 type pointableMap map[string]string
 
-func (p pointableMap) JSONLookup(token string) (interface{}, error) {
+func (p pointableMap) JSONLookup(token string) (any, error) {
 	if token == "swap" {
 		return p["swapped"], nil
 	}
@@ -213,7 +213,7 @@ func TestGetNode(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, result, TestNodeObjNBItems)
 
-	result, _, err = p.Get(aliasedMap(testDocumentJSON.(map[string]interface{})))
+	result, _, err = p.Get(aliasedMap(testDocumentJSON.(map[string]any)))
 	assert.NoError(t, err)
 	assert.Len(t, result, TestNodeObjNBItems)
 
@@ -288,8 +288,8 @@ func TestOtherThings(t *testing.T) {
 	p, err = New("/foo/1")
 	assert.NoError(t, err)
 	expected := "hello"
-	bbb := testDocumentJSON.(map[string]interface{})["foo"]
-	bbb.([]interface{})[1] = "hello"
+	bbb := testDocumentJSON.(map[string]any)["foo"]
+	bbb.([]any)[1] = "hello"
 
 	v, _, err := p.Get(testDocumentJSON)
 	assert.NoError(t, err)
@@ -371,7 +371,7 @@ func (s *settableDoc) UnmarshalJSON(data []byte) error {
 }
 
 // JSONLookup implements an interface to customize json pointer lookup
-func (s settableDoc) JSONLookup(token string) (interface{}, error) {
+func (s settableDoc) JSONLookup(token string) (any, error) {
 	switch token {
 	case "a":
 		return &s.Coll, nil
@@ -383,7 +383,7 @@ func (s settableDoc) JSONLookup(token string) (interface{}, error) {
 }
 
 // JSONLookup implements an interface to customize json pointer lookup
-func (s *settableDoc) JSONSet(token string, data interface{}) error {
+func (s *settableDoc) JSONSet(token string, data any) error {
 	switch token {
 	case "a":
 		switch dt := data.(type) {
@@ -440,7 +440,7 @@ func (s *settableColl) UnmarshalJSON(data []byte) error {
 }
 
 // JSONLookup implements an interface to customize json pointer lookup
-func (s settableColl) JSONLookup(token string) (interface{}, error) {
+func (s settableColl) JSONLookup(token string) (any, error) {
 	if tok, err := strconv.Atoi(token); err == nil {
 		return &s.Items[tok], nil
 	}
@@ -448,7 +448,7 @@ func (s settableColl) JSONLookup(token string) (interface{}, error) {
 }
 
 // JSONLookup implements an interface to customize json pointer lookup
-func (s *settableColl) JSONSet(token string, data interface{}) error {
+func (s *settableColl) JSONSet(token string, data any) error {
 	if _, err := strconv.Atoi(token); err == nil {
 		_, err := SetForToken(s.Items, token, data)
 		return err
@@ -476,7 +476,7 @@ func TestSetNode(t *testing.T) {
 
 	jsonText := `{"a":[{"b": 1, "c": 2}], "d": 3}`
 
-	var jsonDocument interface{}
+	var jsonDocument any
 	if assert.NoError(t, json.Unmarshal([]byte(jsonText), &jsonDocument)) {
 		in := "/a/0/c"
 		p, err := New(in)
@@ -485,13 +485,13 @@ func TestSetNode(t *testing.T) {
 			_, err = p.Set(jsonDocument, 999)
 			assert.NoError(t, err)
 
-			firstNode := jsonDocument.(map[string]interface{})
+			firstNode := jsonDocument.(map[string]any)
 			assert.Len(t, firstNode, 2)
 
-			sliceNode := firstNode["a"].([]interface{})
+			sliceNode := firstNode["a"].([]any)
 			assert.Len(t, sliceNode, 1)
 
-			changedNode := sliceNode[0].(map[string]interface{})
+			changedNode := sliceNode[0].(map[string]any)
 			chNodeVI := changedNode["c"]
 			if assert.IsType(t, 0, chNodeVI) {
 				changedNodeValue := chNodeVI.(int)
@@ -503,14 +503,14 @@ func TestSetNode(t *testing.T) {
 
 		v, err := New("/a/0")
 		if assert.NoError(t, err) {
-			_, err = v.Set(jsonDocument, map[string]interface{}{"b": 3, "c": 8})
+			_, err = v.Set(jsonDocument, map[string]any{"b": 3, "c": 8})
 			if assert.NoError(t, err) {
-				firstNode := jsonDocument.(map[string]interface{})
+				firstNode := jsonDocument.(map[string]any)
 				assert.Len(t, firstNode, 2)
 
-				sliceNode := firstNode["a"].([]interface{})
+				sliceNode := firstNode["a"].([]any)
 				assert.Len(t, sliceNode, 1)
-				changedNode := sliceNode[0].(map[string]interface{})
+				changedNode := sliceNode[0].(map[string]any)
 				assert.Equal(t, 3, changedNode["b"])
 				assert.Equal(t, 8, changedNode["c"])
 			}
