@@ -32,6 +32,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -73,86 +74,84 @@ var testStructJSONDoc testStructJSON
 var testStructJSONPtr *testStructJSON
 
 func init() {
-	json.Unmarshal([]byte(TestDocumentString), &testDocumentJSON)
-	json.Unmarshal([]byte(TestDocumentString), &testStructJSONDoc)
+	if err := json.Unmarshal([]byte(TestDocumentString), &testDocumentJSON); err != nil {
+		panic(err)
+	}
+	if err := json.Unmarshal([]byte(TestDocumentString), &testStructJSONDoc); err != nil {
+		panic(err)
+	}
+
 	testStructJSONPtr = &testStructJSONDoc
 }
 
 func TestEscaping(t *testing.T) {
-
 	ins := []string{`/`, `/`, `/a~1b`, `/a~1b`, `/c%d`, `/e^f`, `/g|h`, `/i\j`, `/k"l`, `/ `, `/m~0n`}
 	outs := []float64{0, 0, 1, 1, 2, 3, 4, 5, 6, 7, 8}
 
 	for i := range ins {
 		p, err := New(ins[i])
-		if assert.NoError(t, err, "input: %v", ins[i]) {
-			result, _, err := p.Get(testDocumentJSON)
-			if assert.NoError(t, err, "input: %v", ins[i]) {
-				assert.Equal(t, outs[i], result, "input: %v", ins[i])
-			}
-		}
+		require.NoError(t, err, "input: %v", ins[i])
+		result, _, err := p.Get(testDocumentJSON)
+
+		require.NoError(t, err, "input: %v", ins[i])
+		assert.Equal(t, outs[i], result, "input: %v", ins[i])
 	}
 
 }
 
 func TestFullDocument(t *testing.T) {
-
-	in := ``
+	const in = ``
 
 	p, err := New(in)
-	if err != nil {
-		t.Errorf("New(%v) error %v", in, err.Error())
-	}
+	require.NoErrorf(t, err, "New(%v) error %v", in, err)
 
 	result, _, err := p.Get(testDocumentJSON)
-	if err != nil {
-		t.Errorf("Get(%v) error %v", in, err.Error())
-	}
+	require.NoErrorf(t, err, "Get(%v) error %v", in, err)
 
-	if len(result.(map[string]any)) != TestDocumentNBItems {
-		t.Errorf("Get(%v) = %v, expect full document", in, result)
-	}
+	asMap, ok := result.(map[string]any)
+	require.True(t, ok)
+	require.Lenf(t, asMap, TestDocumentNBItems, "Get(%v) = %v, expect full document", in, result)
 
 	result, _, err = p.get(testDocumentJSON, nil)
-	if err != nil {
-		t.Errorf("Get(%v) error %v", in, err.Error())
-	}
+	require.NoErrorf(t, err, "Get(%v) error %v", in, err)
 
-	if len(result.(map[string]any)) != TestDocumentNBItems {
-		t.Errorf("Get(%v) = %v, expect full document", in, result)
-	}
+	asMap, ok = result.(map[string]any)
+	require.True(t, ok)
+	require.Lenf(t, asMap, TestDocumentNBItems, "Get(%v) = %v, expect full document", in, result)
 }
 
 func TestDecodedTokens(t *testing.T) {
 	p, err := New("/obj/a~1b")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, []string{"obj", "a/b"}, p.DecodedTokens())
 }
 
 func TestIsEmpty(t *testing.T) {
 	p, err := New("")
-	assert.NoError(t, err)
+	require.NoError(t, err)
+
 	assert.True(t, p.IsEmpty())
 	p, err = New("/obj")
-	assert.NoError(t, err)
+	require.NoError(t, err)
+
 	assert.False(t, p.IsEmpty())
 }
 
 func TestGetSingle(t *testing.T) {
-	in := `/obj`
+	const in = `/obj`
 
 	_, err := New(in)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	result, _, err := GetForToken(testDocumentJSON, "obj")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, result, TestNodeObjNBItems)
 
 	result, _, err = GetForToken(testStructJSONDoc, "Obj")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, result)
 
 	result, _, err = GetForToken(testStructJSONDoc, "Obj2")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, result)
 }
 
@@ -186,78 +185,78 @@ func TestPointableInterface(t *testing.T) {
 	p := &pointableImpl{"hello"}
 
 	result, _, err := GetForToken(p, "some")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, p.a, result)
 
 	result, _, err = GetForToken(p, "something")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, result)
 
 	pm := pointableMap{"swapped": "hello", "a": "world"}
 	result, _, err = GetForToken(pm, "swap")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, pm["swapped"], result)
 
 	result, _, err = GetForToken(pm, "a")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, pm["a"], result)
 }
 
 func TestGetNode(t *testing.T) {
-
-	in := `/obj`
+	const in = `/obj`
 
 	p, err := New(in)
-	assert.NoError(t, err)
+	require.NoError(t, err)
+
 	result, _, err := p.Get(testDocumentJSON)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, result, TestNodeObjNBItems)
 
 	result, _, err = p.Get(aliasedMap(testDocumentJSON.(map[string]any)))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, result, TestNodeObjNBItems)
 
 	result, _, err = p.Get(testStructJSONDoc)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, testStructJSONDoc.Obj, result)
 
 	result, _, err = p.Get(testStructJSONPtr)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, testStructJSONDoc.Obj, result)
 }
 
 func TestArray(t *testing.T) {
-
 	ins := []string{`/foo/0`, `/foo/0`, `/foo/1`}
 	outs := []string{"bar", "bar", "baz"}
 
 	for i := range ins {
 		p, err := New(ins[i])
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		result, _, err := p.Get(testStructJSONDoc)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, outs[i], result)
 
 		result, _, err = p.Get(testStructJSONPtr)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, outs[i], result)
 
 		result, _, err = p.Get(testDocumentJSON)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, outs[i], result)
 	}
 }
 
 func TestOtherThings(t *testing.T) {
 	_, err := New("abc")
-	assert.Error(t, err)
+	require.Error(t, err)
 
 	p, err := New("")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "", p.String())
 
 	p, err = New("/obj/a")
+	require.NoError(t, err)
 	assert.Equal(t, "/obj/a", p.String())
 
 	s := Escape("m~n")
@@ -266,33 +265,33 @@ func TestOtherThings(t *testing.T) {
 	assert.Equal(t, "m~1n", s)
 
 	p, err = New("/foo/3")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	_, _, err = p.Get(testDocumentJSON)
-	assert.Error(t, err)
+	require.Error(t, err)
 
 	p, err = New("/foo/a")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	_, _, err = p.Get(testDocumentJSON)
-	assert.Error(t, err)
+	require.Error(t, err)
 
 	p, err = New("/notthere")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	_, _, err = p.Get(testDocumentJSON)
-	assert.Error(t, err)
+	require.Error(t, err)
 
 	p, err = New("/invalid")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	_, _, err = p.Get(1234)
-	assert.Error(t, err)
+	require.Error(t, err)
 
 	p, err = New("/foo/1")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	expected := "hello"
 	bbb := testDocumentJSON.(map[string]any)["foo"]
 	bbb.([]any)[1] = "hello"
 
 	v, _, err := p.Get(testDocumentJSON)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, expected, v)
 
 	esc := Escape("a/")
@@ -307,34 +306,34 @@ func TestOtherThings(t *testing.T) {
 }
 
 func TestObject(t *testing.T) {
-
 	ins := []string{`/obj/a`, `/obj/b`, `/obj/c/0`, `/obj/c/1`, `/obj/c/1`, `/obj/d/1/f/0`}
 	outs := []float64{1, 2, 3, 4, 4, 50}
 
 	for i := range ins {
-
 		p, err := New(ins[i])
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		result, _, err := p.Get(testDocumentJSON)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, outs[i], result)
 
 		result, _, err = p.Get(testStructJSONDoc)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.EqualValues(t, outs[i], result)
 
 		result, _, err = p.Get(testStructJSONPtr)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.EqualValues(t, outs[i], result)
 	}
 }
 
-type setJsonDocEle struct {
-	B int `json:"b"`
-	C int `json:"c"`
-}
-type setJsonDoc struct {
+/*
+	type setJSONDocEle struct {
+		B int `json:"b"`
+		C int `json:"c"`
+	}
+*/
+type setJSONDoc struct {
 	A []struct {
 		B int `json:"b"`
 		C int `json:"c"`
@@ -473,127 +472,141 @@ func (s *settableInt) UnmarshalJSON(data []byte) error {
 }
 
 func TestSetNode(t *testing.T) {
-
-	jsonText := `{"a":[{"b": 1, "c": 2}], "d": 3}`
+	const jsonText = `{"a":[{"b": 1, "c": 2}], "d": 3}`
 
 	var jsonDocument any
-	if assert.NoError(t, json.Unmarshal([]byte(jsonText), &jsonDocument)) {
-		in := "/a/0/c"
+	require.NoError(t, json.Unmarshal([]byte(jsonText), &jsonDocument))
+
+	t.Run("with set node c", func(t *testing.T) {
+		const in = "/a/0/c"
 		p, err := New(in)
-		if assert.NoError(t, err) {
+		require.NoError(t, err)
 
-			_, err = p.Set(jsonDocument, 999)
-			assert.NoError(t, err)
+		_, err = p.Set(jsonDocument, 999)
+		require.NoError(t, err)
 
-			firstNode := jsonDocument.(map[string]any)
-			assert.Len(t, firstNode, 2)
+		firstNode, ok := jsonDocument.(map[string]any)
+		require.True(t, ok)
+		assert.Len(t, firstNode, 2)
 
-			sliceNode := firstNode["a"].([]any)
-			assert.Len(t, sliceNode, 1)
+		sliceNode, ok := firstNode["a"].([]any)
+		require.True(t, ok)
+		assert.Len(t, sliceNode, 1)
 
-			changedNode := sliceNode[0].(map[string]any)
-			chNodeVI := changedNode["c"]
-			if assert.IsType(t, 0, chNodeVI) {
-				changedNodeValue := chNodeVI.(int)
-				if assert.Equal(t, 999, changedNodeValue) {
-					assert.Len(t, sliceNode, 1)
-				}
-			}
-		}
+		changedNode, ok := sliceNode[0].(map[string]any)
+		require.True(t, ok)
+		chNodeVI := changedNode["c"]
 
+		require.IsType(t, 0, chNodeVI)
+		changedNodeValue := chNodeVI.(int)
+		require.Equal(t, 999, changedNodeValue)
+		assert.Len(t, sliceNode, 1)
+	})
+
+	t.Run("with set node 0 with map", func(t *testing.T) {
 		v, err := New("/a/0")
-		if assert.NoError(t, err) {
-			_, err = v.Set(jsonDocument, map[string]any{"b": 3, "c": 8})
-			if assert.NoError(t, err) {
-				firstNode := jsonDocument.(map[string]any)
-				assert.Len(t, firstNode, 2)
+		require.NoError(t, err)
 
-				sliceNode := firstNode["a"].([]any)
-				assert.Len(t, sliceNode, 1)
-				changedNode := sliceNode[0].(map[string]any)
-				assert.Equal(t, 3, changedNode["b"])
-				assert.Equal(t, 8, changedNode["c"])
-			}
-		}
-	}
+		_, err = v.Set(jsonDocument, map[string]any{"b": 3, "c": 8})
+		require.NoError(t, err)
 
-	var structDoc setJsonDoc
-	if assert.NoError(t, json.Unmarshal([]byte(jsonText), &structDoc)) {
-		g, err := New("/a")
-		if assert.NoError(t, err) {
+		firstNode, ok := jsonDocument.(map[string]any)
+		require.True(t, ok)
+		assert.Len(t, firstNode, 2)
+
+		sliceNode, ok := firstNode["a"].([]any)
+		require.True(t, ok)
+		assert.Len(t, sliceNode, 1)
+
+		changedNode, ok := sliceNode[0].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, 3, changedNode["b"])
+		assert.Equal(t, 8, changedNode["c"])
+	})
+
+	t.Run("with struct", func(t *testing.T) {
+		var structDoc setJSONDoc
+		require.NoError(t, json.Unmarshal([]byte(jsonText), &structDoc))
+
+		t.Run("with set array node", func(t *testing.T) {
+			g, err := New("/a")
+			require.NoError(t, err)
+
 			_, err = g.Set(&structDoc, []struct {
 				B int `json:"b"`
 				C int `json:"c"`
 			}{{B: 4, C: 7}})
+			require.NoError(t, err)
+			assert.Len(t, structDoc.A, 1)
+			changedNode := structDoc.A[0]
+			assert.Equal(t, 4, changedNode.B)
+			assert.Equal(t, 7, changedNode.C)
+		})
 
-			if assert.NoError(t, err) {
-				assert.Len(t, structDoc.A, 1)
-				changedNode := structDoc.A[0]
-				assert.Equal(t, 4, changedNode.B)
-				assert.Equal(t, 7, changedNode.C)
-			}
-		}
+		t.Run("with set node 0 with struct", func(t *testing.T) {
+			v, err := New("/a/0")
+			require.NoError(t, err)
 
-		v, err := New("/a/0")
-		if assert.NoError(t, err) {
 			_, err = v.Set(structDoc, struct {
 				B int `json:"b"`
 				C int `json:"c"`
 			}{B: 3, C: 8})
+			require.NoError(t, err)
+			assert.Len(t, structDoc.A, 1)
+			changedNode := structDoc.A[0]
+			assert.Equal(t, 3, changedNode.B)
+			assert.Equal(t, 8, changedNode.C)
+		})
 
-			if assert.NoError(t, err) {
-				assert.Len(t, structDoc.A, 1)
-				changedNode := structDoc.A[0]
-				assert.Equal(t, 3, changedNode.B)
-				assert.Equal(t, 8, changedNode.C)
-			}
-		}
+		t.Run("with set node c with struct", func(t *testing.T) {
+			p, err := New("/a/0/c")
+			require.NoError(t, err)
 
-		p, err := New("/a/0/c")
-		if assert.NoError(t, err) {
 			_, err = p.Set(&structDoc, 999)
-			assert.NoError(t, err)
-			if assert.Len(t, structDoc.A, 1) {
-				assert.Equal(t, 999, structDoc.A[0].C)
-			}
-		}
-	}
+			require.NoError(t, err)
 
-	var setDoc settableDoc
-	if assert.NoError(t, json.Unmarshal([]byte(jsonText), &setDoc)) {
-		g, err := New("/a")
-		if assert.NoError(t, err) {
+			require.Len(t, structDoc.A, 1)
+			assert.Equal(t, 999, structDoc.A[0].C)
+		})
+	})
+
+	t.Run("with Settable", func(t *testing.T) {
+		var setDoc settableDoc
+		require.NoError(t, json.Unmarshal([]byte(jsonText), &setDoc))
+
+		t.Run("with array node a", func(t *testing.T) {
+			g, err := New("/a")
+			require.NoError(t, err)
+
 			_, err = g.Set(&setDoc, []settableCollItem{{B: 4, C: 7}})
+			require.NoError(t, err)
+			assert.Len(t, setDoc.Coll.Items, 1)
+			changedNode := setDoc.Coll.Items[0]
+			assert.Equal(t, 4, changedNode.B)
+			assert.Equal(t, 7, changedNode.C)
+		})
 
-			if assert.NoError(t, err) {
-				assert.Len(t, setDoc.Coll.Items, 1)
-				changedNode := setDoc.Coll.Items[0]
-				assert.Equal(t, 4, changedNode.B)
-				assert.Equal(t, 7, changedNode.C)
-			}
-		}
+		t.Run("with node 0", func(t *testing.T) {
+			v, err := New("/a/0")
+			require.NoError(t, err)
 
-		v, err := New("/a/0")
-		if assert.NoError(t, err) {
 			_, err = v.Set(setDoc, settableCollItem{B: 3, C: 8})
+			require.NoError(t, err)
+			assert.Len(t, setDoc.Coll.Items, 1)
+			changedNode := setDoc.Coll.Items[0]
+			assert.Equal(t, 3, changedNode.B)
+			assert.Equal(t, 8, changedNode.C)
+		})
 
-			if assert.NoError(t, err) {
-				assert.Len(t, setDoc.Coll.Items, 1)
-				changedNode := setDoc.Coll.Items[0]
-				assert.Equal(t, 3, changedNode.B)
-				assert.Equal(t, 8, changedNode.C)
-			}
-		}
-
-		p, err := New("/a/0/c")
-		if assert.NoError(t, err) {
+		t.Run("with node c", func(t *testing.T) {
+			p, err := New("/a/0/c")
+			require.NoError(t, err)
 			_, err = p.Set(setDoc, 999)
-			assert.NoError(t, err)
-			if assert.Len(t, setDoc.Coll.Items, 1) {
-				assert.Equal(t, 999, setDoc.Coll.Items[0].C)
-			}
-		}
-	}
+			require.NoError(t, err)
+			require.Len(t, setDoc.Coll.Items, 1)
+			assert.Equal(t, 999, setDoc.Coll.Items[0].C)
+		})
+	})
 }
 
 func TestOffset(t *testing.T) {
@@ -645,14 +658,16 @@ func TestOffset(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			ptr, err := New(tt.ptr)
-			assert.NoError(t, err)
+			require.NoError(t, err)
+
 			offset, err := ptr.Offset(tt.input)
 			if tt.hasError {
-				assert.Error(t, err)
+				require.Error(t, err)
 				return
 			}
+
 			t.Log(offset, err)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, tt.offset, offset)
 		})
 	}
