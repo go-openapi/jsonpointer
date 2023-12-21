@@ -140,19 +140,56 @@ func TestIsEmpty(t *testing.T) {
 func TestGetSingle(t *testing.T) {
 	const in = `/obj`
 
-	_, err := New(in)
-	require.NoError(t, err)
-	result, _, err := GetForToken(testDocumentJSON, "obj")
-	require.NoError(t, err)
-	assert.Len(t, result, TestNodeObjNBItems)
+	t.Run("should create a new JSON pointer", func(t *testing.T) {
+		_, err := New(in)
+		require.NoError(t, err)
+	})
 
-	result, _, err = GetForToken(testStructJSONDoc, "Obj")
-	require.Error(t, err)
-	assert.Nil(t, result)
+	t.Run(`should find token "obj" in JSON`, func(t *testing.T) {
+		result, _, err := GetForToken(testDocumentJSON, "obj")
+		require.NoError(t, err)
+		assert.Len(t, result, TestNodeObjNBItems)
+	})
 
-	result, _, err = GetForToken(testStructJSONDoc, "Obj2")
-	require.Error(t, err)
-	assert.Nil(t, result)
+	t.Run(`should find token "obj" in type alias interface`, func(t *testing.T) {
+		type alias interface{}
+		var in alias = testDocumentJSON
+		result, _, err := GetForToken(in, "obj")
+		require.NoError(t, err)
+		assert.Len(t, result, TestNodeObjNBItems)
+	})
+
+	t.Run(`should find token "obj" in pointer to interface`, func(t *testing.T) {
+		in := &testDocumentJSON
+		result, _, err := GetForToken(in, "obj")
+		require.NoError(t, err)
+		assert.Len(t, result, TestNodeObjNBItems)
+	})
+
+	t.Run(`should not find token "Obj" in struct`, func(t *testing.T) {
+		result, _, err := GetForToken(testStructJSONDoc, "Obj")
+		require.Error(t, err)
+		assert.Nil(t, result)
+	})
+
+	t.Run(`should not find token "Obj2" in struct`, func(t *testing.T) {
+		result, _, err := GetForToken(testStructJSONDoc, "Obj2")
+		require.Error(t, err)
+		assert.Nil(t, result)
+	})
+
+	t.Run(`should not find token in nil`, func(t *testing.T) {
+		result, _, err := GetForToken(nil, "obj")
+		require.Error(t, err)
+		assert.Nil(t, result)
+	})
+
+	t.Run(`should not find token in nil interface`, func(t *testing.T) {
+		var in interface{}
+		result, _, err := GetForToken(in, "obj")
+		require.Error(t, err)
+		assert.Nil(t, result)
+	})
 }
 
 type pointableImpl struct {
