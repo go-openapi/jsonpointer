@@ -28,7 +28,7 @@ jobs:
           GH_TOKEN: ${{secrets.GITHUB_TOKEN}}
 
       - name: Auto-merge dependabot PRs for go-openapi patches
-        if: contains(steps.metadata.outputs.dependency-group, 'go-openapi-dependencies') && steps.metadata.outputs.update-type == 'version-update:semver-patch'
+        if: contains(steps.metadata.outputs.dependency-group, 'go-openapi-dependencies') && (steps.metadata.outputs.update-type == 'version-update:semver-minor' || steps.metadata.outputs.update-type == 'version-update:semver-patch')
         run: gh pr merge --auto --rebase "$PR_URL"
         env:
           PR_URL: ${{github.event.pull_request.html_url}}
