@@ -1,6 +1,17 @@
 name: go test
 
-on: [push, pull_request]
+on:
+  push:
+    tags:
+      - v*
+    branches:
+      - master
+    paths-ignore:
+      - '**.md'
+
+  pull_request:
+    paths-ignore:
+      - '**.md'
 
 jobs:
   lint:
