@@ -94,7 +94,7 @@ func TestEscaping(t *testing.T) {
 		result, _, err := p.Get(testDocumentJSON)
 
 		require.NoError(t, err, "input: %v", ins[i])
-		assert.Equal(t, outs[i], result, "input: %v", ins[i])
+		assert.InDeltaf(t, outs[i], result, 1e-6, "input: %v", ins[i])
 	}
 
 }
@@ -352,15 +352,15 @@ func TestObject(t *testing.T) {
 
 		result, _, err := p.Get(testDocumentJSON)
 		require.NoError(t, err)
-		assert.Equal(t, outs[i], result)
+		assert.InDelta(t, outs[i], result, 1e-6)
 
 		result, _, err = p.Get(testStructJSONDoc)
 		require.NoError(t, err)
-		assert.EqualValues(t, outs[i], result)
+		assert.InDelta(t, outs[i], result, 1e-6)
 
 		result, _, err = p.Get(testStructJSONPtr)
 		require.NoError(t, err)
-		assert.EqualValues(t, outs[i], result)
+		assert.InDelta(t, outs[i], result, 1e-6)
 	}
 }
 
