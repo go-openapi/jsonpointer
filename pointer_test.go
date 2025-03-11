@@ -200,7 +200,7 @@ func (p pointableImpl) JSONLookup(token string) (any, error) {
 	if token == "some" {
 		return p.a, nil
 	}
-	return nil, fmt.Errorf("object has no field %q", token)
+	return nil, fmt.Errorf("object has no field %q: %w", token, ErrPointer)
 }
 
 type pointableMap map[string]string
@@ -215,7 +215,7 @@ func (p pointableMap) JSONLookup(token string) (any, error) {
 		return v, nil
 	}
 
-	return nil, fmt.Errorf("object has no key %q", token)
+	return nil, fmt.Errorf("object has no key %q: %w", token, ErrPointer)
 }
 
 func TestPointableInterface(t *testing.T) {
@@ -414,7 +414,7 @@ func (s settableDoc) JSONLookup(token string) (any, error) {
 	case "d":
 		return &s.Int, nil
 	default:
-		return nil, fmt.Errorf("%s is not a known field", token)
+		return nil, fmt.Errorf("%s is not a known field: %w", token, ErrPointer)
 	}
 }
 
@@ -458,10 +458,10 @@ func (s *settableDoc) JSONSet(token string, data any) error {
 			s.Int.Value = int(dt)
 			return nil
 		default:
-			return fmt.Errorf("invalid type %T for %s", data, token)
+			return fmt.Errorf("invalid type %T for %s: %w", data, token, ErrPointer)
 		}
 	}
-	return fmt.Errorf("%s is not a known field", token)
+	return fmt.Errorf("%s is not a known field: %w", token, ErrPointer)
 }
 
 type settableColl struct {
@@ -480,7 +480,7 @@ func (s settableColl) JSONLookup(token string) (any, error) {
 	if tok, err := strconv.Atoi(token); err == nil {
 		return &s.Items[tok], nil
 	}
-	return nil, fmt.Errorf("%s is not a valid index", token)
+	return nil, fmt.Errorf("%s is not a valid index: %w", token, ErrPointer)
 }
 
 // JSONLookup implements an interface to customize json pointer lookup
@@ -489,7 +489,7 @@ func (s *settableColl) JSONSet(token string, data any) error {
 		_, err := SetForToken(s.Items, token, data)
 		return err
 	}
-	return fmt.Errorf("%s is not a valid index", token)
+	return fmt.Errorf("%s is not a valid index: %w", token, ErrPointer)
 }
 
 type settableCollItem struct {
