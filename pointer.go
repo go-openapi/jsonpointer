@@ -41,6 +41,9 @@ const (
 	pointerSeparator = `/`
 )
 
+var jsonPointableType = reflect.TypeOf(new(JSONPointable)).Elem()
+var jsonSetableType = reflect.TypeOf(new(JSONSetable)).Elem()
+
 // JSONPointable is an interface for structs to implement when they need to customize the
 // json pointer process
 type JSONPointable interface {
