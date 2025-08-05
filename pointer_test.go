@@ -644,6 +644,94 @@ func TestSetNode(t *testing.T) {
 			assert.Equal(t, 999, setDoc.Coll.Items[0].C)
 		})
 	})
+
+	t.Run("with nil traversal panic", func(t *testing.T) {
+		// This test exposes the panic that occurs when trying to set a value
+		// through a path that contains nil intermediate values
+		data := map[string]any{
+			"level1": map[string]any{
+				"level2": map[string]any{
+					"level3": nil, // This nil causes the panic
+				},
+			},
+		}
+
+		ptr, err := New("/level1/level2/level3/value")
+		require.NoError(t, err)
+
+		// This should return an error, not panic
+		_, err = ptr.Set(data, "test-value")
+
+		// The library should handle this gracefully and return an error
+		// instead of panicking
+		require.Error(t, err, "Setting value through nil intermediate path should return an error, not panic")
+	})
+
+	t.Run("with direct nil map value", func(t *testing.T) {
+		// Simpler test case that directly tests nil traversal
+		data := map[string]any{
+			"container": nil,
+		}
+
+		ptr, err := New("/container/nested/value")
+		require.NoError(t, err)
+
+		// Attempting to traverse through nil should return an error, not panic
+		_, err = ptr.Set(data, "test")
+		require.Error(t, err, "Cannot traverse through nil intermediate values")
+	})
+
+	t.Run("with nil in nested structure", func(t *testing.T) {
+		// Test case with multiple nil values in nested structure
+		data := map[string]any{
+			"config": map[string]any{
+				"settings": nil,
+			},
+			"data": map[string]any{
+				"nested": map[string]any{
+					"properties": map[string]any{
+						"attributes": nil, // Nil intermediate value
+					},
+				},
+			},
+		}
+
+		ptr, err := New("/data/nested/properties/attributes/name")
+		require.NoError(t, err)
+
+		// Should return error, not panic
+		_, err = ptr.Set(data, "test-name")
+		require.Error(t, err, "Setting through nil intermediate path should return error")
+	})
+
+	t.Run("with path creation through nil intermediate", func(t *testing.T) {
+		// Test case that simulates path creation functions encountering nil
+		// This happens when tools try to create missing paths but encounter nil intermediate values
+		data := map[string]any{
+			"spec": map[string]any{
+				"template": nil, // This blocks path creation attempts
+			},
+		}
+
+		// Attempting to create a path like /spec/template/metadata/labels should fail gracefully
+		ptr, err := New("/spec/template/metadata")
+		require.NoError(t, err)
+
+		// Should return error when trying to set on nil intermediate during path creation
+		_, err = ptr.Set(data, map[string]any{"labels": map[string]any{}})
+		require.Error(t, err, "Setting on nil intermediate during path creation should return error")
+	})
+
+	t.Run("with SetForToken on nil", func(t *testing.T) {
+		// Test the single-level SetForToken function with nil
+		data := map[string]any{
+			"container": nil,
+		}
+
+		// Should handle nil gracefully at single token level
+		_, err := SetForToken(data["container"], "nested", "value")
+		require.Error(t, err, "SetForToken on nil should return error, not panic")
+	})
 }
 
 func TestOffset(t *testing.T) {
