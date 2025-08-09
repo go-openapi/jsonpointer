@@ -290,7 +290,7 @@ func TestOtherThings(t *testing.T) {
 
 	p, err := New("")
 	require.NoError(t, err)
-	assert.Equal(t, "", p.String())
+	assert.Empty(t, p.String())
 
 	p, err = New("/obj/a")
 	require.NoError(t, err)
