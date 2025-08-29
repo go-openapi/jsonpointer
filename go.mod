@@ -2,7 +2,7 @@ module github.com/go-openapi/jsonpointer
 
 require (
 	github.com/go-openapi/swag v0.23.1
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.1
 )
 
 require (
