@@ -33,7 +33,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/go-openapi/swag"
+	"github.com/go-openapi/swag/jsonname"
 )
 
 const (
@@ -72,12 +72,12 @@ func New(jsonPointerString string) (Pointer, error) {
 
 // Get uses the pointer to retrieve a value from a JSON document
 func (p *Pointer) Get(document any) (any, reflect.Kind, error) {
-	return p.get(document, swag.DefaultJSONNameProvider)
+	return p.get(document, jsonname.DefaultJSONNameProvider)
 }
 
 // Set uses the pointer to set a value from a JSON document
 func (p *Pointer) Set(document any, value any) (any, error) {
-	return document, p.set(document, value, swag.DefaultJSONNameProvider)
+	return document, p.set(document, value, jsonname.DefaultJSONNameProvider)
 }
 
 // DecodedTokens returns the decoded tokens
@@ -154,9 +154,9 @@ func (p *Pointer) parse(jsonPointerString string) error {
 	return err
 }
 
-func (p *Pointer) get(node any, nameProvider *swag.NameProvider) (any, reflect.Kind, error) {
+func (p *Pointer) get(node any, nameProvider *jsonname.NameProvider) (any, reflect.Kind, error) {
 	if nameProvider == nil {
-		nameProvider = swag.DefaultJSONNameProvider
+		nameProvider = jsonname.DefaultJSONNameProvider
 	}
 
 	kind := reflect.Invalid
@@ -182,7 +182,7 @@ func (p *Pointer) get(node any, nameProvider *swag.NameProvider) (any, reflect.K
 	return node, kind, nil
 }
 
-func (p *Pointer) set(node, data any, nameProvider *swag.NameProvider) error {
+func (p *Pointer) set(node, data any, nameProvider *jsonname.NameProvider) error {
 	knd := reflect.ValueOf(node).Kind()
 
 	if knd != reflect.Ptr && knd != reflect.Struct && knd != reflect.Map && knd != reflect.Slice && knd != reflect.Array {
@@ -193,7 +193,7 @@ func (p *Pointer) set(node, data any, nameProvider *swag.NameProvider) error {
 	}
 
 	if nameProvider == nil {
-		nameProvider = swag.DefaultJSONNameProvider
+		nameProvider = jsonname.DefaultJSONNameProvider
 	}
 
 	// Full document when empty
@@ -300,15 +300,15 @@ func isNil(input any) bool {
 
 // GetForToken gets a value for a json pointer token 1 level deep
 func GetForToken(document any, decodedToken string) (any, reflect.Kind, error) {
-	return getSingleImpl(document, decodedToken, swag.DefaultJSONNameProvider)
+	return getSingleImpl(document, decodedToken, jsonname.DefaultJSONNameProvider)
 }
 
 // SetForToken gets a value for a json pointer token 1 level deep
 func SetForToken(document any, decodedToken string, value any) (any, error) {
-	return document, setSingleImpl(document, value, decodedToken, swag.DefaultJSONNameProvider)
+	return document, setSingleImpl(document, value, decodedToken, jsonname.DefaultJSONNameProvider)
 }
 
-func getSingleImpl(node any, decodedToken string, nameProvider *swag.NameProvider) (any, reflect.Kind, error) {
+func getSingleImpl(node any, decodedToken string, nameProvider *jsonname.NameProvider) (any, reflect.Kind, error) {
 	rValue := reflect.Indirect(reflect.ValueOf(node))
 	kind := rValue.Kind()
 	if isNil(node) {
@@ -362,7 +362,7 @@ func getSingleImpl(node any, decodedToken string, nameProvider *swag.NameProvide
 	}
 }
 
-func setSingleImpl(node, data any, decodedToken string, nameProvider *swag.NameProvider) error {
+func setSingleImpl(node, data any, decodedToken string, nameProvider *jsonname.NameProvider) error {
 	rValue := reflect.Indirect(reflect.ValueOf(node))
 
 	// Check for nil to prevent panic when calling rValue.Type()
