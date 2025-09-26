@@ -1,7 +1,7 @@
 module github.com/go-openapi/jsonpointer
 
 require (
-	github.com/go-openapi/swag/jsonname v0.24.0
+	github.com/go-openapi/swag/jsonname v0.25.0
 	github.com/stretchr/testify v1.11.1
 )
 
@@ -12,4 +12,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-go 1.20
+go 1.24.0
