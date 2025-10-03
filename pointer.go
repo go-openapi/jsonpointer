@@ -96,7 +96,7 @@ func (p *Pointer) IsEmpty() bool {
 	return len(p.referenceTokens) == 0
 }
 
-// Pointer to string representation function
+// String representation of a pointer
 func (p *Pointer) String() string {
 
 	if len(p.referenceTokens) == 0 {
