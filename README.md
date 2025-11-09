@@ -21,7 +21,7 @@ also known as [RFC6901](https://www.rfc-editor.org/rfc/rfc6901)
 
 This library ships under the [SPDX-License-Identifier: Apache-2.0](./LICENSE).
 
-See the license [NOTICE](./NOTICE), which recalls the licensing terms of all the pieces of software 
+See the license [NOTICE](./NOTICE), which recalls the licensing terms of all the pieces of software
 on top of which it has been built.
 
 ## Limitations
