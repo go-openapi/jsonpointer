@@ -130,7 +130,7 @@ func TestGetSingle(t *testing.T) {
 	})
 
 	t.Run(`should find token "obj" in type alias interface`, func(t *testing.T) {
-		type alias interface{}
+		type alias any
 		var in alias = testDocumentJSON
 		result, _, err := GetForToken(in, "obj")
 		require.NoError(t, err)
@@ -163,7 +163,7 @@ func TestGetSingle(t *testing.T) {
 	})
 
 	t.Run(`should not find token in nil interface`, func(t *testing.T) {
-		var in interface{}
+		var in any
 		result, _, err := GetForToken(in, "obj")
 		require.Error(t, err)
 		assert.Nil(t, result)
