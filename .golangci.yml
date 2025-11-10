@@ -16,7 +16,6 @@ linters:
     - godox
     - gosmopolitan
     - inamedparam
-    #- intrange # disabled while < go1.22
     - ireturn
     - lll
     - musttag
