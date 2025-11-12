@@ -1,4 +1,4 @@
-# gojsonpointer
+# jsonpointer
 
 <!-- Badges: status  -->
 [![Tests][test-badge]][test-url] [![Coverage][cov-badge]][cov-url] [![CI vuln scan][vuln-scan-badge]][vuln-scan-url] [![CodeQL][codeql-badge]][codeql-url]
@@ -14,7 +14,7 @@
 
 ---
 
-An implementation of JSON Pointer - Go language
+An implementation of JSON Pointer for golang, which supports go `struct`.
 
 ## Status
 
