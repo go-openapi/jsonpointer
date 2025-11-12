@@ -13,158 +13,182 @@ import (
 	"github.com/go-openapi/testify/v2/require"
 )
 
-const (
-	TestDocumentNBItems = 11
-	TestNodeObjNBItems  = 4
-	TestDocumentString  = `{
-"foo": ["bar", "baz"],
-"obj": { "a":1, "b":2, "c":[3,4], "d":[ {"e":9}, {"f":[50,51]} ] },
-"": 0,
-"a/b": 1,
-"c%d": 2,
-"e^f": 3,
-"g|h": 4,
-"i\\j": 5,
-"k\"l": 6,
-" ": 7,
-"m~n": 8
-}`
-)
-
-var testDocumentJSON any
-
-type testStructJSON struct {
-	Foo []string `json:"foo"`
-	Obj struct {
-		A int   `json:"a"`
-		B int   `json:"b"`
-		C []int `json:"c"`
-		D []struct {
-			E int   `json:"e"`
-			F []int `json:"f"`
-		} `json:"d"`
-	} `json:"obj"`
-}
-
-type aliasedMap map[string]any
-
-var testStructJSONDoc testStructJSON
-var testStructJSONPtr *testStructJSON
-
-func init() {
-	if err := json.Unmarshal([]byte(TestDocumentString), &testDocumentJSON); err != nil {
-		panic(err)
-	}
-	if err := json.Unmarshal([]byte(TestDocumentString), &testStructJSONDoc); err != nil {
-		panic(err)
-	}
-
-	testStructJSONPtr = &testStructJSONDoc
-}
-
 func TestEscaping(t *testing.T) {
-	ins := []string{`/`, `/`, `/a~1b`, `/a~1b`, `/c%d`, `/e^f`, `/g|h`, `/i\j`, `/k"l`, `/ `, `/m~0n`}
-	outs := []float64{0, 0, 1, 1, 2, 3, 4, 5, 6, 7, 8}
+	t.Parallel()
 
-	for i := range ins {
-		p, err := New(ins[i])
-		require.NoError(t, err, "input: %v", ins[i])
-		result, _, err := p.Get(testDocumentJSON)
+	t.Run("escaped pointer strings against test document", func(t *testing.T) {
+		ins := []string{`/`, `/`, `/a~1b`, `/a~1b`, `/c%d`, `/e^f`, `/g|h`, `/i\j`, `/k"l`, `/ `, `/m~0n`}
+		outs := []float64{0, 0, 1, 1, 2, 3, 4, 5, 6, 7, 8}
 
-		require.NoError(t, err, "input: %v", ins[i])
-		assert.InDeltaf(t, outs[i], result, 1e-6, "input: %v", ins[i])
-	}
+		for i := range ins {
+			t.Run("should create a JSONPointer", func(t *testing.T) {
+				p, err := New(ins[i])
+				require.NoError(t, err, "input: %v", ins[i])
 
+				t.Run("should get JSONPointer from document", func(t *testing.T) {
+					result, _, err := p.Get(testDocumentJSON(t))
+					require.NoError(t, err, "input: %v", ins[i])
+					assert.InDeltaf(t, outs[i], result, 1e-6, "input: %v", ins[i])
+				})
+			})
+		}
+	})
+
+	t.Run("special escapes", func(t *testing.T) {
+		t.Parallel()
+
+		t.Run("with escape then unescape", func(t *testing.T) {
+			const original = "a/"
+
+			t.Run("unescaping an escaped string should yield the original", func(t *testing.T) {
+				esc := Escape(original)
+				assert.Equal(t, "a~1", esc)
+
+				unesc := Unescape(esc)
+				assert.Equal(t, original, unesc)
+			})
+		})
+
+		t.Run("with multiple escapes", func(t *testing.T) {
+			unesc := Unescape("~01")
+			assert.Equal(t, "~1", unesc)
+			assert.Equal(t, "~01", Escape(unesc))
+
+			const (
+				original = "~/"
+				escaped  = "~0~1"
+			)
+
+			assert.Equal(t, escaped, Escape(original))
+			assert.Equal(t, original, Unescape(escaped))
+		})
+
+		t.Run("with escaped characters in pointer", func(t *testing.T) {
+			t.Run("escaped ~", func(t *testing.T) {
+				s := Escape("m~n")
+				assert.Equal(t, "m~0n", s)
+			})
+			t.Run("escaped /", func(t *testing.T) {
+				s := Escape("m/n")
+				assert.Equal(t, "m~1n", s)
+			})
+		})
+	})
 }
 
 func TestFullDocument(t *testing.T) {
-	const in = ``
+	t.Parallel()
 
-	p, err := New(in)
-	require.NoErrorf(t, err, "New(%v) error %v", in, err)
+	t.Run("with empty pointer", func(t *testing.T) {
+		const in = ``
 
-	result, _, err := p.Get(testDocumentJSON)
-	require.NoErrorf(t, err, "Get(%v) error %v", in, err)
+		p, err := New(in)
+		require.NoErrorf(t, err, "New(%v) error %v", in, err)
 
-	asMap, ok := result.(map[string]any)
-	require.True(t, ok)
-	require.Lenf(t, asMap, TestDocumentNBItems, "Get(%v) = %v, expect full document", in, result)
+		t.Run("should resolve full doc", func(t *testing.T) {
+			result, _, err := p.Get(testDocumentJSON(t))
+			require.NoErrorf(t, err, "Get(%v) error %v", in, err)
 
-	result, _, err = p.get(testDocumentJSON, nil)
-	require.NoErrorf(t, err, "Get(%v) error %v", in, err)
+			asMap, ok := result.(map[string]any)
+			require.True(t, ok)
 
-	asMap, ok = result.(map[string]any)
-	require.True(t, ok)
-	require.Lenf(t, asMap, TestDocumentNBItems, "Get(%v) = %v, expect full document", in, result)
+			require.Lenf(t, asMap, testDocumentNBItems(), "Get(%v) = %v, expect full document", in, result)
+		})
+
+		t.Run("should resolve full doc, with nil name provider", func(t *testing.T) {
+			result, _, err := p.get(testDocumentJSON(t), nil)
+			require.NoErrorf(t, err, "Get(%v) error %v", in, err)
+
+			asMap, ok := result.(map[string]any)
+			require.True(t, ok)
+			require.Lenf(t, asMap, testDocumentNBItems(), "Get(%v) = %v, expect full document", in, result)
+		})
+	})
 }
 
 func TestDecodedTokens(t *testing.T) {
+	t.Parallel()
+
 	p, err := New("/obj/a~1b")
 	require.NoError(t, err)
 	assert.Equal(t, []string{"obj", "a/b"}, p.DecodedTokens())
 }
 
 func TestIsEmpty(t *testing.T) {
-	p, err := New("")
-	require.NoError(t, err)
+	t.Parallel()
 
-	assert.True(t, p.IsEmpty())
-	p, err = New("/obj")
-	require.NoError(t, err)
+	t.Run("with empty pointer", func(t *testing.T) {
+		p, err := New("")
+		require.NoError(t, err)
 
-	assert.False(t, p.IsEmpty())
+		assert.True(t, p.IsEmpty())
+	})
+
+	t.Run("with non-empty pointer", func(t *testing.T) {
+		p, err := New("/obj")
+		require.NoError(t, err)
+
+		assert.False(t, p.IsEmpty())
+	})
 }
 
 func TestGetSingle(t *testing.T) {
-	const in = `/obj`
+	t.Parallel()
+
+	const key = "obj"
 
 	t.Run("should create a new JSON pointer", func(t *testing.T) {
+		const in = "/" + key
+
 		_, err := New(in)
 		require.NoError(t, err)
 	})
 
-	t.Run(`should find token "obj" in JSON`, func(t *testing.T) {
-		result, _, err := GetForToken(testDocumentJSON, "obj")
+	t.Run(fmt.Sprintf("should find token %q in JSON", key), func(t *testing.T) {
+		result, _, err := GetForToken(testDocumentJSON(t), key)
 		require.NoError(t, err)
-		assert.Len(t, result, TestNodeObjNBItems)
+		assert.Len(t, result, testNodeObjNBItems())
 	})
 
-	t.Run(`should find token "obj" in type alias interface`, func(t *testing.T) {
+	t.Run(fmt.Sprintf("should find token %q in type alias interface", key), func(t *testing.T) {
 		type alias any
-		var in alias = testDocumentJSON
-		result, _, err := GetForToken(in, "obj")
+		var in alias = testDocumentJSON(t)
+
+		result, _, err := GetForToken(in, key)
 		require.NoError(t, err)
-		assert.Len(t, result, TestNodeObjNBItems)
+		assert.Len(t, result, testNodeObjNBItems())
 	})
 
-	t.Run(`should find token "obj" in pointer to interface`, func(t *testing.T) {
-		in := &testDocumentJSON
-		result, _, err := GetForToken(in, "obj")
+	t.Run(fmt.Sprintf("should find token %q in pointer to interface", key), func(t *testing.T) {
+		in := testDocumentJSON(t)
+
+		result, _, err := GetForToken(&in, key)
 		require.NoError(t, err)
-		assert.Len(t, result, TestNodeObjNBItems)
+		assert.Len(t, result, testNodeObjNBItems())
 	})
 
-	t.Run(`should not find token "Obj" in struct`, func(t *testing.T) {
-		result, _, err := GetForToken(testStructJSONDoc, "Obj")
+	t.Run(`should NOT find token "Obj" in struct`, func(t *testing.T) {
+		result, _, err := GetForToken(testStructJSONDoc(t), "Obj")
 		require.Error(t, err)
 		assert.Nil(t, result)
 	})
 
 	t.Run(`should not find token "Obj2" in struct`, func(t *testing.T) {
-		result, _, err := GetForToken(testStructJSONDoc, "Obj2")
+		result, _, err := GetForToken(testStructJSONDoc(t), "Obj2")
 		require.Error(t, err)
 		assert.Nil(t, result)
 	})
 
-	t.Run(`should not find token in nil`, func(t *testing.T) {
-		result, _, err := GetForToken(nil, "obj")
+	t.Run("should not find token in nil", func(t *testing.T) {
+		result, _, err := GetForToken(nil, key)
 		require.Error(t, err)
 		assert.Nil(t, result)
 	})
 
-	t.Run(`should not find token in nil interface`, func(t *testing.T) {
+	t.Run("should not find token in nil interface", func(t *testing.T) {
 		var in any
-		result, _, err := GetForToken(in, "obj")
+
+		result, _, err := GetForToken(in, key)
 		require.Error(t, err)
 		assert.Nil(t, result)
 	})
@@ -197,130 +221,192 @@ func (p pointableMap) JSONLookup(token string) (any, error) {
 }
 
 func TestPointableInterface(t *testing.T) {
-	p := &pointableImpl{"hello"}
+	t.Parallel()
 
-	result, _, err := GetForToken(p, "some")
-	require.NoError(t, err)
-	assert.Equal(t, p.a, result)
+	t.Run("with pointable type", func(t *testing.T) {
+		p := &pointableImpl{"hello"}
+		result, _, err := GetForToken(p, "some")
+		require.NoError(t, err)
+		assert.Equal(t, p.a, result)
 
-	result, _, err = GetForToken(p, "something")
-	require.Error(t, err)
-	assert.Nil(t, result)
+		result, _, err = GetForToken(p, "something")
+		require.Error(t, err)
+		assert.Nil(t, result)
+	})
 
-	pm := pointableMap{"swapped": "hello", "a": "world"}
-	result, _, err = GetForToken(pm, "swap")
-	require.NoError(t, err)
-	assert.Equal(t, pm["swapped"], result)
+	t.Run("with pointable map", func(t *testing.T) {
+		p := pointableMap{"swapped": "hello", "a": "world"}
+		result, _, err := GetForToken(p, "swap")
+		require.NoError(t, err)
+		assert.Equal(t, p["swapped"], result)
 
-	result, _, err = GetForToken(pm, "a")
-	require.NoError(t, err)
-	assert.Equal(t, pm["a"], result)
+		result, _, err = GetForToken(p, "a")
+		require.NoError(t, err)
+		assert.Equal(t, p["a"], result)
+	})
 }
 
 func TestGetNode(t *testing.T) {
+	t.Parallel()
+
 	const in = `/obj`
 
-	p, err := New(in)
-	require.NoError(t, err)
+	t.Run("should build pointer", func(t *testing.T) {
+		p, err := New(in)
+		require.NoError(t, err)
 
-	result, _, err := p.Get(testDocumentJSON)
-	require.NoError(t, err)
-	assert.Len(t, result, TestNodeObjNBItems)
+		t.Run("should resolve pointer against document", func(t *testing.T) {
+			result, _, err := p.Get(testDocumentJSON(t))
+			require.NoError(t, err)
+			assert.Len(t, result, testNodeObjNBItems())
+		})
 
-	result, _, err = p.Get(aliasedMap(testDocumentJSON.(map[string]any)))
-	require.NoError(t, err)
-	assert.Len(t, result, TestNodeObjNBItems)
+		t.Run("with aliased map", func(t *testing.T) {
+			asMap, ok := testDocumentJSON(t).(map[string]any)
+			require.True(t, ok)
+			alias := aliasedMap(asMap)
 
-	result, _, err = p.Get(testStructJSONDoc)
-	require.NoError(t, err)
-	assert.Equal(t, testStructJSONDoc.Obj, result)
+			result, _, err := p.Get(alias)
+			require.NoError(t, err)
+			assert.Len(t, result, testNodeObjNBItems())
+		})
 
-	result, _, err = p.Get(testStructJSONPtr)
-	require.NoError(t, err)
-	assert.Equal(t, testStructJSONDoc.Obj, result)
+		t.Run("with struct", func(t *testing.T) {
+			doc := testStructJSONDoc(t)
+			expected := testStructJSONDoc(t).Obj
+
+			result, _, err := p.Get(doc)
+			require.NoError(t, err)
+			assert.Equal(t, expected, result)
+		})
+
+		t.Run("with pointer to struct", func(t *testing.T) {
+			doc := testStructJSONPtr(t)
+			expected := testStructJSONDoc(t).Obj
+
+			result, _, err := p.Get(doc)
+			require.NoError(t, err)
+			assert.Equal(t, expected, result)
+		})
+	})
 }
 
 func TestArray(t *testing.T) {
+	t.Parallel()
+
 	ins := []string{`/foo/0`, `/foo/0`, `/foo/1`}
 	outs := []string{"bar", "bar", "baz"}
 
-	for i := range ins {
-		p, err := New(ins[i])
-		require.NoError(t, err)
+	for i, pointer := range ins {
+		expected := outs[i]
 
-		result, _, err := p.Get(testStructJSONDoc)
-		require.NoError(t, err)
-		assert.Equal(t, outs[i], result)
+		t.Run(fmt.Sprintf("with pointer %q", pointer), func(t *testing.T) {
+			p, err := New(pointer)
+			require.NoError(t, err)
 
-		result, _, err = p.Get(testStructJSONPtr)
-		require.NoError(t, err)
-		assert.Equal(t, outs[i], result)
+			t.Run("should resolve against struct", func(t *testing.T) {
+				result, _, err := p.Get(testStructJSONDoc(t))
+				require.NoError(t, err)
+				assert.Equal(t, expected, result)
+			})
 
-		result, _, err = p.Get(testDocumentJSON)
-		require.NoError(t, err)
-		assert.Equal(t, outs[i], result)
+			t.Run("should resolve against pointer to struct", func(t *testing.T) {
+				result, _, err := p.Get(testStructJSONPtr(t))
+				require.NoError(t, err)
+				assert.Equal(t, expected, result)
+			})
+
+			t.Run("should resolve against dynamic JSON map", func(t *testing.T) {
+				result, _, err := p.Get(testDocumentJSON(t))
+				require.NoError(t, err)
+				assert.Equal(t, expected, result)
+			})
+		})
 	}
 }
 
 func TestOtherThings(t *testing.T) {
-	_, err := New("abc")
-	require.Error(t, err)
+	t.Parallel()
 
-	p, err := New("")
-	require.NoError(t, err)
-	assert.Empty(t, p.String())
+	t.Run("single string pointer should be valid", func(t *testing.T) {
+		_, err := New("abc")
+		require.Error(t, err)
+	})
 
-	p, err = New("/obj/a")
-	require.NoError(t, err)
-	assert.Equal(t, "/obj/a", p.String())
+	t.Run("empty string pointer should be valid", func(t *testing.T) {
+		p, err := New("")
+		require.NoError(t, err)
+		assert.Empty(t, p.String())
+	})
 
-	s := Escape("m~n")
-	assert.Equal(t, "m~0n", s)
-	s = Escape("m/n")
-	assert.Equal(t, "m~1n", s)
+	t.Run("string representation of a pointer", func(t *testing.T) {
+		p, err := New("/obj/a")
+		require.NoError(t, err)
+		assert.Equal(t, "/obj/a", p.String())
+	})
 
-	p, err = New("/foo/3")
-	require.NoError(t, err)
-	_, _, err = p.Get(testDocumentJSON)
-	require.Error(t, err)
+	t.Run("out of bound array index should error", func(t *testing.T) {
+		p, err := New("/foo/3")
+		require.NoError(t, err)
 
-	p, err = New("/foo/a")
-	require.NoError(t, err)
-	_, _, err = p.Get(testDocumentJSON)
-	require.Error(t, err)
+		_, _, err = p.Get(testDocumentJSON(t))
+		require.Error(t, err)
+	})
 
-	p, err = New("/notthere")
-	require.NoError(t, err)
-	_, _, err = p.Get(testDocumentJSON)
-	require.Error(t, err)
+	t.Run("referring to a key in an array should error", func(t *testing.T) {
+		p, err := New("/foo/a")
+		require.NoError(t, err)
+		_, _, err = p.Get(testDocumentJSON(t))
+		require.Error(t, err)
+	})
 
-	p, err = New("/invalid")
-	require.NoError(t, err)
-	_, _, err = p.Get(1234)
-	require.Error(t, err)
+	t.Run("referring to a non-existing key in an array should error", func(t *testing.T) {
+		p, err := New("/notthere")
+		require.NoError(t, err)
+		_, _, err = p.Get(testDocumentJSON(t))
+		require.Error(t, err)
+	})
 
-	p, err = New("/foo/1")
-	require.NoError(t, err)
-	expected := "hello"
-	bbb := testDocumentJSON.(map[string]any)["foo"]
-	bbb.([]any)[1] = "hello"
+	t.Run("resolving pointer against an unsupport type (int) should error", func(t *testing.T) {
+		p, err := New("/invalid")
+		require.NoError(t, err)
+		_, _, err = p.Get(1234)
+		require.Error(t, err)
+	})
 
-	v, _, err := p.Get(testDocumentJSON)
-	require.NoError(t, err)
-	assert.Equal(t, expected, v)
+	t.Run("with pointer to an array index", func(t *testing.T) {
+		for index := range 2 {
+			p, err := New(fmt.Sprintf("/foo/%d", index))
+			require.NoError(t, err)
 
-	esc := Escape("a/")
-	assert.Equal(t, "a~1", esc)
-	unesc := Unescape(esc)
-	assert.Equal(t, "a/", unesc)
+			v, _, err := p.Get(testDocumentJSON(t))
+			require.NoError(t, err)
 
-	unesc = Unescape("~01")
-	assert.Equal(t, "~1", unesc)
-	assert.Equal(t, "~0~1", Escape("~/"))
-	assert.Equal(t, "~/", Unescape("~0~1"))
+			expected := extractFooKeyIndex(t, index)
+			assert.Equal(t, expected, v)
+		}
+	})
+}
+
+func extractFooKeyIndex(t *testing.T, index int) any {
+	t.Helper()
+
+	asMap, ok := testDocumentJSON(t).(map[string]any)
+	require.True(t, ok)
+
+	// {"foo": [ ... ] }
+	bbb, ok := asMap["foo"]
+	require.True(t, ok)
+
+	asArray, ok := bbb.([]any)
+	require.True(t, ok)
+
+	return asArray[index]
 }
 
 func TestObject(t *testing.T) {
+	t.Parallel()
+
 	ins := []string{`/obj/a`, `/obj/b`, `/obj/c/0`, `/obj/c/1`, `/obj/c/1`, `/obj/d/1/f/0`}
 	outs := []float64{1, 2, 3, 4, 4, 50}
 
@@ -328,26 +414,20 @@ func TestObject(t *testing.T) {
 		p, err := New(ins[i])
 		require.NoError(t, err)
 
-		result, _, err := p.Get(testDocumentJSON)
+		result, _, err := p.Get(testDocumentJSON(t))
 		require.NoError(t, err)
 		assert.InDelta(t, outs[i], result, 1e-6)
 
-		result, _, err = p.Get(testStructJSONDoc)
+		result, _, err = p.Get(testStructJSONDoc(t))
 		require.NoError(t, err)
 		assert.InDelta(t, outs[i], result, 1e-6)
 
-		result, _, err = p.Get(testStructJSONPtr)
+		result, _, err = p.Get(testStructJSONPtr(t))
 		require.NoError(t, err)
 		assert.InDelta(t, outs[i], result, 1e-6)
 	}
 }
 
-/*
-	type setJSONDocEle struct {
-		B int `json:"b"`
-		C int `json:"c"`
-	}
-*/
 type setJSONDoc struct {
 	A []struct {
 		B int `json:"b"`
@@ -487,6 +567,8 @@ func (s *settableInt) UnmarshalJSON(data []byte) error {
 }
 
 func TestSetNode(t *testing.T) {
+	t.Parallel()
+
 	const jsonText = `{"a":[{"b": 1, "c": 2}], "d": 3}`
 
 	var jsonDocument any
@@ -513,7 +595,9 @@ func TestSetNode(t *testing.T) {
 		chNodeVI := changedNode["c"]
 
 		require.IsType(t, 0, chNodeVI)
-		changedNodeValue := chNodeVI.(int)
+		changedNodeValue, ok := chNodeVI.(int)
+		require.True(t, ok)
+
 		require.Equal(t, 999, changedNodeValue)
 		assert.Len(t, sliceNode, 1)
 	})
@@ -713,6 +797,8 @@ func TestSetNode(t *testing.T) {
 }
 
 func TestOffset(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		name     string
 		ptr      string
