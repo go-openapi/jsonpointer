@@ -20,6 +20,40 @@ An implementation of JSON Pointer for golang, which supports go `struct`.
 
 API is stable.
 
+## Import this library in your project
+
+```cmd
+go get github.com/go-openapi/jsonpointer
+```
+
+## Basic usage
+
+See [examples](./examples_test.go)
+
+```go
+  import (
+    "github.com/go-openapi/jsonpointer"
+  )
+
+  ...
+
+	pointer, err := jsonpointer.New("/foo/1")
+	if err != nil {
+		... // error: e.g. invalid JSON pointer specification
+	}
+
+	value, kind, err := pointer.Get(doc)
+	if err != nil {
+		... // error: e.g. key not found, index out of bounds, etc.
+	}
+
+  ...
+```
+
+## Change log
+
+See <https://github.com/go-openapi/jsonpointer/releases>
+
 ## References
 
 <https://tools.ietf.org/html/draft-ietf-appsawg-json-pointer-07>
@@ -62,8 +96,8 @@ using the special trailing character "-" is not implemented.
 <!-- Badges: documentation & support -->
 [doc-badge]: https://img.shields.io/badge/doc-site-blue?link=https%3A%2F%2Fgoswagger.io%2Fgo-openapi%2F
 [doc-url]: https://goswagger.io/go-openapi
-[godoc-badge]: https://godoc.org/github.com/go-openapi/jsonpointer?status.svg
-[godoc-url]: http://godoc.org/github.com/go-openapi/jsonpointer
+[godoc-badge]: https://pkg.go.dev/github.com/go-openapi/jsonpointer?status.svg
+[godoc-url]: http://pkg.go.dev/github.com/go-openapi/jsonpointer
 [slack-badge]: https://slackin.goswagger.io/badge.svg
 [slack-url]: https://slackin.goswagger.io
 <!-- Badges: license & compliance -->

@@ -64,8 +64,9 @@ func (p *Pointer) DecodedTokens() []string {
 	return result
 }
 
-// IsEmpty returns true if this is an empty json pointer
-// this indicates that it points to the root document
+// IsEmpty returns true if this is an empty json pointer.
+//
+// This indicates that it points to the root document.
 func (p *Pointer) IsEmpty() bool {
 	return len(p.referenceTokens) == 0
 }

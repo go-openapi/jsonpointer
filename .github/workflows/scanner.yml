@@ -15,7 +15,7 @@ on:
   push:
     branches: [ "master" ]
   schedule:
-    - cron: '18 4 * * *'
+    - cron: '18 4 * * 3'
 
 jobs:
   analysis:
