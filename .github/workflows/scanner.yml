@@ -6,9 +6,11 @@ permissions: read-all
 #   A fast vulnerability scan on the repo that effectively supplements ossf scorecard and codesql
 #   and may run every day.
 #
-#   Trivy reports are often more easily actionable than codeql reports.
+#   * trivy reports are often more easily actionable than codeql reports.
+#   * govumnscan supplements this analysis with a more go-specific approach
 #
-# TODO(fredbi): we may supplement this analysis with snyk (to be experimented with) (requires a token).
+# NOTE: at this moment, we don't want to adopt snyk, which requires a token, provides an extra dashboard etc.
+# Most likely, snyk would be redundant with trivy.
 
 on:
   branch_protection_rule:
@@ -45,3 +47,22 @@ jobs:
         with:
           category: trivy
           sarif_file: trivy-code-report.sarif
+
+  govulnscan:
+    name: go vulnerability scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      -
+        id: govulncheck
+        uses: golang/govulncheck-action@b625fbe08f3bccbe446d94fbf87fcc875a4f50ee # v1.0.4
+        output-format: sarif
+        output-file: govulnscan-report.sarif
+      -
+        name: Upload govulnscan findings to code scanning dashboard
+        uses: github/codeql-action/upload-sarif@014f16e7ab1402f30e7c3329d33797e7948572db # v4.31.3
+        with:
+          category: govulnscan
+          sarif_file: govulnscan-code-report.sarif
