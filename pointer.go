@@ -114,18 +114,18 @@ func (p *Pointer) Offset(document string) (int64, error) {
 
 // "Constructor", parses the given string JSON pointer
 func (p *Pointer) parse(jsonPointerString string) error {
-	var err error
-
-	if jsonPointerString != emptyPointer {
-		if !strings.HasPrefix(jsonPointerString, pointerSeparator) {
-			err = errors.Join(ErrInvalidStart, ErrPointer)
-		} else {
-			referenceTokens := strings.Split(jsonPointerString, pointerSeparator)
-			p.referenceTokens = append(p.referenceTokens, referenceTokens[1:]...)
-		}
+	if jsonPointerString == emptyPointer {
+		return nil
 	}
 
-	return err
+	if !strings.HasPrefix(jsonPointerString, pointerSeparator) {
+		return errors.Join(ErrInvalidStart, ErrPointer)
+	}
+
+	referenceTokens := strings.Split(jsonPointerString, pointerSeparator)
+	p.referenceTokens = append(p.referenceTokens, referenceTokens[1:]...)
+
+	return nil
 }
 
 func (p *Pointer) get(node any, nameProvider *jsonname.NameProvider) (any, reflect.Kind, error) {
@@ -166,33 +166,36 @@ func (p *Pointer) set(node, data any, nameProvider *jsonname.NameProvider) error
 		)
 	}
 
+	l := len(p.referenceTokens)
+
+	// full document when empty
+	if l == 0 {
+		return nil
+	}
+
 	if nameProvider == nil {
 		nameProvider = jsonname.DefaultJSONNameProvider
 	}
 
-	// full document when empty
-	if len(p.referenceTokens) == 0 {
-		return nil
+	var decodedToken string
+	lastIndex := l - 1
+
+	if lastIndex > 0 { // skip if we only have one token in pointer
+		for _, token := range p.referenceTokens[:lastIndex] {
+			decodedToken = Unescape(token)
+			next, err := p.resolveNodeForToken(node, decodedToken, nameProvider)
+			if err != nil {
+				return err
+			}
+
+			node = next
+		}
 	}
 
-	lastI := len(p.referenceTokens) - 1
-	for i, token := range p.referenceTokens {
-		isLastToken := i == lastI
-		decodedToken := Unescape(token)
+	// last token
+	decodedToken = Unescape(p.referenceTokens[lastIndex])
 
-		if isLastToken {
-			return setSingleImpl(node, data, decodedToken, nameProvider)
-		}
-
-		next, err := p.resolveNodeForToken(node, decodedToken, nameProvider)
-		if err != nil {
-			return err
-		}
-
-		node = next
-	}
-
-	return nil
+	return setSingleImpl(node, data, decodedToken, nameProvider)
 }
 
 func (p *Pointer) resolveNodeForToken(node any, decodedToken string, nameProvider *jsonname.NameProvider) (next any, err error) {
@@ -420,6 +423,7 @@ func offsetSingleObject(dec *json.Decoder, decodedToken string) (int64, error) {
 			return 0, fmt.Errorf("invalid token %#v: %w", tk, ErrPointer)
 		}
 	}
+
 	return 0, fmt.Errorf("token reference %q not found: %w", decodedToken, ErrPointer)
 }
 
@@ -452,6 +456,7 @@ func offsetSingleArray(dec *json.Decoder, decodedToken string) (int64, error) {
 	if !dec.More() {
 		return 0, fmt.Errorf("token reference %q not found: %w", decodedToken, ErrPointer)
 	}
+
 	return dec.InputOffset(), nil
 }
 
@@ -477,10 +482,11 @@ func drainSingle(dec *json.Decoder) error {
 		}
 	}
 
-	// Consumes the ending delim
+	// consumes the ending delim
 	if _, err := dec.Token(); err != nil {
 		return err
 	}
+
 	return nil
 }
 

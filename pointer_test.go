@@ -102,6 +102,27 @@ func TestFullDocument(t *testing.T) {
 			asMap, ok := result.(map[string]any)
 			require.True(t, ok)
 			require.Lenf(t, asMap, testDocumentNBItems(), "Get(%v) = %v, expect full document", in, result)
+
+			t.Run("should set value in doc, with nil name provider", func(t *testing.T) {
+				setter, err := New("/foo/0")
+				require.NoErrorf(t, err, "New(%v) error %v", in, err)
+
+				const value = "hey"
+				require.NoError(t, setter.set(asMap, value, nil))
+
+				foos, ok := asMap["foo"]
+				require.True(t, ok)
+
+				asArray, ok := foos.([]any)
+				require.True(t, ok)
+				require.Len(t, asArray, 2)
+
+				foo := asArray[0]
+				bar, ok := foo.(string)
+				require.True(t, ok)
+
+				require.Equal(t, value, bar)
+			})
 		})
 	})
 }
@@ -367,7 +388,7 @@ func TestOtherThings(t *testing.T) {
 		require.Error(t, err)
 	})
 
-	t.Run("resolving pointer against an unsupport type (int) should error", func(t *testing.T) {
+	t.Run("resolving pointer against an unsupported type (int) should error", func(t *testing.T) {
 		p, err := New("/invalid")
 		require.NoError(t, err)
 		_, _, err = p.Get(1234)
@@ -860,4 +881,27 @@ func TestOffset(t *testing.T) {
 			assert.Equal(t, tt.offset, offset)
 		})
 	}
+}
+
+func TestEdgeCases(t *testing.T) {
+	t.Parallel()
+
+	t.Run("set at pointer against an unsupported type (int) should error", func(t *testing.T) {
+		p, err := New("/invalid")
+		require.NoError(t, err)
+		_, err = p.Set(1, 1234)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrUnsupportedValueType)
+	})
+
+	t.Run("set with empty pointer", func(t *testing.T) {
+		p, err := New("")
+		require.NoError(t, err)
+
+		doc := testDocumentJSON(t)
+		newDoc, err := p.Set(doc, 1)
+		require.NoError(t, err)
+
+		require.Equal(t, doc, newDoc)
+	})
 }
