@@ -471,6 +471,7 @@ func (s settableDoc) MarshalJSON() ([]byte, error) {
 	res.D = s.Int
 	return json.Marshal(res)
 }
+
 func (s *settableDoc) UnmarshalJSON(data []byte) error {
 	var res struct {
 		A settableColl `json:"a"`
@@ -485,7 +486,7 @@ func (s *settableDoc) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// JSONLookup implements an interface to customize json pointer lookup
+// JSONLookup implements an interface to customize json pointer lookup.
 func (s settableDoc) JSONLookup(token string) (any, error) {
 	switch token {
 	case "a":
@@ -497,7 +498,7 @@ func (s settableDoc) JSONLookup(token string) (any, error) {
 	}
 }
 
-// JSONLookup implements an interface to customize json pointer lookup
+// JSONLookup implements an interface to customize json pointer lookup.
 func (s *settableDoc) JSONSet(token string, data any) error {
 	switch token {
 	case "a":
@@ -550,11 +551,12 @@ type settableColl struct {
 func (s settableColl) MarshalJSON() ([]byte, error) {
 	return json.Marshal(s.Items)
 }
+
 func (s *settableColl) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &s.Items)
 }
 
-// JSONLookup implements an interface to customize json pointer lookup
+// JSONLookup implements an interface to customize json pointer lookup.
 func (s settableColl) JSONLookup(token string) (any, error) {
 	if tok, err := strconv.Atoi(token); err == nil {
 		return &s.Items[tok], nil
@@ -562,7 +564,7 @@ func (s settableColl) JSONLookup(token string) (any, error) {
 	return nil, fmt.Errorf("%s is not a valid index: %w", token, ErrPointer)
 }
 
-// JSONLookup implements an interface to customize json pointer lookup
+// JSONLookup implements an interface to customize json pointer lookup.
 func (s *settableColl) JSONSet(token string, data any) error {
 	if _, err := strconv.Atoi(token); err == nil {
 		_, err := SetForToken(s.Items, token, data)
@@ -583,6 +585,7 @@ type settableInt struct {
 func (s settableInt) MarshalJSON() ([]byte, error) {
 	return json.Marshal(s.Value)
 }
+
 func (s *settableInt) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &s.Value)
 }

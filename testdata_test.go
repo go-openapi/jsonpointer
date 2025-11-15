@@ -40,12 +40,12 @@ func testStructJSONPtr(t *testing.T) *testStructJSON {
 	return &document
 }
 
-// number of items in the test document
+// number of items in the test document.
 func testDocumentNBItems() int {
 	return 11
 }
 
-// number of objects nodes in the test document
+// number of objects nodes in the test document.
 func testNodeObjNBItems() int {
 	return 4
 }

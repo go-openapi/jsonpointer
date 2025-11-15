@@ -3,14 +3,9 @@ linters:
   default: all
   disable:
     - depguard
-    - errorlint
-    - exhaustruct
     - funlen
-    - godot
     - godox
-    - gosmopolitan
-    - ireturn
-    - lll
+    - exhaustruct
     - nlreturn
     - nonamedreturns
     - noinlineerr
@@ -33,6 +28,11 @@ linters:
       max-complexity: 20
     gocyclo:
       min-complexity: 20
+    exhaustive:
+      default-signifies-exhaustive: true
+      default-case-required: true
+    lll:
+      line-length: 180
   exclusions:
     generated: lax
     presets:
@@ -48,6 +48,7 @@ formatters:
   enable:
     - gofmt
     - goimports
+    - gofumpt
   exclusions:
     generated: lax
     paths:
