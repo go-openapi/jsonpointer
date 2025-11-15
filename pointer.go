@@ -20,24 +20,46 @@ const (
 	pointerSeparator = `/`
 )
 
-// JSONPointable is an interface for structs to implement when they need to customize the
-// json pointer process
+// JSONPointable is an interface for structs to implement,
+// when they need to customize the json pointer process or want to avoid the use of reflection.
 type JSONPointable interface {
+	// JSONLookup returns a value pointed at this (unescaped) key.
 	JSONLookup(key string) (any, error)
 }
 
-// JSONSetable is an interface for structs to implement when they need to customize the
-// json pointer process
+// JSONSetable is an interface for structs to implement,
+// when they need to customize the json pointer process or want to avoid the use of reflection.
 type JSONSetable interface {
+	// JSONSet sets the value pointed at the (unescaped) key.
 	JSONSet(key string, value any) error
 }
 
-// Pointer is a representation of a json pointer
+// Pointer is a representation of a json pointer.
+//
+// Use [Pointer.Get] to retrieve a value or [Pointer.Set] to set a value.
+//
+// It works with any go type interpreted as a JSON document, which means:
+//
+//   - if a type implements [JSONPointable], its [JSONPointable.JSONLookup] method is used to resolve [Pointer.Get]
+//   - if a type implements [JSONSetable], its [JSONPointable.JSONSet] method is used to resolve [Pointer.Set]
+//   - a go map[K]V is interpreted as an object, with type K assignable to a string
+//   - a go slice []T is interpreted as an array
+//   - a go struct is interpreted as an object, with exported fields interpreted as keys
+//   - scalars (e.g. int, float64 ...), channels, functions and go arrays cannot be traversed
+//
+// For struct s resolved by reflection, key mappings honor the conventional struct tag `json`.
+//
+// Fields that do not specify a `json` tag, or specify an empty one, or are tagged as `json:"-"` are ignored.
+//
+// # Limitations
+//
+//   - Unlike go standard marshaling, untagged fields do not default to the go field name and are ignored.
+//   - anonymous embedded fields are not traversed
 type Pointer struct {
 	referenceTokens []string
 }
 
-// New creates a new json pointer for the given string
+// New creates a new json pointer from its string representation.
 func New(jsonPointerString string) (Pointer, error) {
 	var p Pointer
 	err := p.parse(jsonPointerString)
@@ -45,22 +67,28 @@ func New(jsonPointerString string) (Pointer, error) {
 	return p, err
 }
 
-// Get uses the pointer to retrieve a value from a JSON document
+// Get uses the pointer to retrieve a value from a JSON document.
+//
+// It returns the value with its type as a [reflect.Kind] or an error.
 func (p *Pointer) Get(document any) (any, reflect.Kind, error) {
 	return p.get(document, jsonname.DefaultJSONNameProvider)
 }
 
-// Set uses the pointer to set a value from a JSON document
+// Set uses the pointer to set a value from a data type
+// that represent a JSON document.
+//
+// It returns the updated document.
 func (p *Pointer) Set(document any, value any) (any, error) {
 	return document, p.set(document, value, jsonname.DefaultJSONNameProvider)
 }
 
-// DecodedTokens returns the decoded tokens of this JSON pointer
+// DecodedTokens returns the decoded (unescaped) tokens of this JSON pointer.
 func (p *Pointer) DecodedTokens() []string {
 	result := make([]string, 0, len(p.referenceTokens))
-	for _, t := range p.referenceTokens {
-		result = append(result, Unescape(t))
+	for _, token := range p.referenceTokens {
+		result = append(result, Unescape(token))
 	}
+
 	return result
 }
 
@@ -71,9 +99,8 @@ func (p *Pointer) IsEmpty() bool {
 	return len(p.referenceTokens) == 0
 }
 
-// String representation of a pointer
+// String representation of a pointer.
 func (p *Pointer) String() string {
-
 	if len(p.referenceTokens) == 0 {
 		return emptyPointer
 	}
@@ -112,13 +139,14 @@ func (p *Pointer) Offset(document string) (int64, error) {
 	return offset, nil
 }
 
-// "Constructor", parses the given string JSON pointer
+// "Constructor", parses the given string JSON pointer.
 func (p *Pointer) parse(jsonPointerString string) error {
 	if jsonPointerString == emptyPointer {
 		return nil
 	}
 
 	if !strings.HasPrefix(jsonPointerString, pointerSeparator) {
+		// non empty pointer must start with "/"
 		return errors.Join(ErrInvalidStart, ErrPointer)
 	}
 
@@ -135,7 +163,7 @@ func (p *Pointer) get(node any, nameProvider *jsonname.NameProvider) (any, refle
 
 	kind := reflect.Invalid
 
-	// Full document when empty
+	// full document when empty
 	if len(p.referenceTokens) == 0 {
 		return node, kind, nil
 	}
@@ -161,6 +189,7 @@ func (p *Pointer) set(node, data any, nameProvider *jsonname.NameProvider) error
 
 	if knd != reflect.Pointer && knd != reflect.Struct && knd != reflect.Map && knd != reflect.Slice && knd != reflect.Array {
 		return errors.Join(
+			fmt.Errorf("unexpected type: %T", node), //nolint:err113 // err wrapping is carried out by errors.Join, not fmt.Errorf.
 			ErrUnsupportedValueType,
 			ErrPointer,
 		)
@@ -222,7 +251,7 @@ func (p *Pointer) resolveNodeForToken(node any, decodedToken string, nameProvide
 	rValue := reflect.Indirect(reflect.ValueOf(node))
 	kind := rValue.Kind()
 
-	switch kind { //nolint:exhaustive
+	switch kind {
 	case reflect.Struct:
 		nm, ok := nameProvider.GetGoNameForType(rValue.Type(), decodedToken)
 		if !ok {
@@ -236,7 +265,7 @@ func (p *Pointer) resolveNodeForToken(node any, decodedToken string, nameProvide
 		mv := rValue.MapIndex(kv)
 
 		if !mv.IsValid() {
-			return nil, fmt.Errorf("object has no key %q: %w", decodedToken, ErrPointer)
+			return nil, errNoKey(decodedToken)
 		}
 
 		return typeFromValue(mv), nil
@@ -249,13 +278,13 @@ func (p *Pointer) resolveNodeForToken(node any, decodedToken string, nameProvide
 
 		sLength := rValue.Len()
 		if tokenIndex < 0 || tokenIndex >= sLength {
-			return nil, fmt.Errorf("index out of bounds array[0,%d] index '%d': %w", sLength, tokenIndex, ErrPointer)
+			return nil, errOutOfBounds(sLength, tokenIndex)
 		}
 
 		return typeFromValue(rValue.Index(tokenIndex)), nil
 
 	default:
-		return nil, fmt.Errorf("invalid token reference %q: %w", decodedToken, ErrPointer)
+		return nil, errInvalidReference(decodedToken)
 	}
 }
 
@@ -265,7 +294,7 @@ func isNil(input any) bool {
 	}
 
 	kind := reflect.TypeOf(input).Kind()
-	switch kind { //nolint:exhaustive
+	switch kind {
 	case reflect.Pointer, reflect.Map, reflect.Slice, reflect.Chan:
 		return reflect.ValueOf(input).IsNil()
 	default:
@@ -281,12 +310,12 @@ func typeFromValue(v reflect.Value) any {
 	return v.Interface()
 }
 
-// GetForToken gets a value for a json pointer token 1 level deep
+// GetForToken gets a value for a json pointer token 1 level deep.
 func GetForToken(document any, decodedToken string) (any, reflect.Kind, error) {
 	return getSingleImpl(document, decodedToken, jsonname.DefaultJSONNameProvider)
 }
 
-// SetForToken gets a value for a json pointer token 1 level deep
+// SetForToken sets a value for a json pointer token 1 level deep.
 func SetForToken(document any, decodedToken string, value any) (any, error) {
 	return document, setSingleImpl(document, value, decodedToken, jsonname.DefaultJSONNameProvider)
 }
@@ -309,13 +338,15 @@ func getSingleImpl(node any, decodedToken string, nameProvider *jsonname.NamePro
 		return getSingleImpl(*typed, decodedToken, nameProvider)
 	}
 
-	switch kind { //nolint:exhaustive
+	switch kind {
 	case reflect.Struct:
 		nm, ok := nameProvider.GetGoNameForType(rValue.Type(), decodedToken)
 		if !ok {
 			return nil, kind, fmt.Errorf("object has no field %q: %w", decodedToken, ErrPointer)
 		}
+
 		fld := rValue.FieldByName(nm)
+
 		return fld.Interface(), kind, nil
 
 	case reflect.Map:
@@ -325,7 +356,8 @@ func getSingleImpl(node any, decodedToken string, nameProvider *jsonname.NamePro
 		if mv.IsValid() {
 			return mv.Interface(), kind, nil
 		}
-		return nil, kind, fmt.Errorf("object has no key %q: %w", decodedToken, ErrPointer)
+
+		return nil, kind, errNoKey(decodedToken)
 
 	case reflect.Slice:
 		tokenIndex, err := strconv.Atoi(decodedToken)
@@ -334,14 +366,14 @@ func getSingleImpl(node any, decodedToken string, nameProvider *jsonname.NamePro
 		}
 		sLength := rValue.Len()
 		if tokenIndex < 0 || tokenIndex >= sLength {
-			return nil, kind, fmt.Errorf("index out of bounds array[0,%d] index '%d': %w", sLength-1, tokenIndex, ErrPointer)
+			return nil, kind, errOutOfBounds(sLength, tokenIndex)
 		}
 
 		elem := rValue.Index(tokenIndex)
 		return elem.Interface(), kind, nil
 
 	default:
-		return nil, kind, fmt.Errorf("invalid token reference %q: %w", decodedToken, ErrPointer)
+		return nil, kind, errInvalidReference(decodedToken)
 	}
 }
 
@@ -357,7 +389,7 @@ func setSingleImpl(node, data any, decodedToken string, nameProvider *jsonname.N
 		return ns.JSONSet(decodedToken, data)
 	}
 
-	switch rValue.Kind() { //nolint:exhaustive
+	switch rValue.Kind() {
 	case reflect.Struct:
 		nm, ok := nameProvider.GetGoNameForType(rValue.Type(), decodedToken)
 		if !ok {
@@ -381,7 +413,7 @@ func setSingleImpl(node, data any, decodedToken string, nameProvider *jsonname.N
 		}
 		sLength := rValue.Len()
 		if tokenIndex < 0 || tokenIndex >= sLength {
-			return fmt.Errorf("index out of bounds array[0,%d] index '%d': %w", sLength, tokenIndex, ErrPointer)
+			return errOutOfBounds(sLength, tokenIndex)
 		}
 
 		elem := rValue.Index(tokenIndex)
@@ -392,7 +424,7 @@ func setSingleImpl(node, data any, decodedToken string, nameProvider *jsonname.N
 		return nil
 
 	default:
-		return fmt.Errorf("invalid token reference %q: %w", decodedToken, ErrPointer)
+		return errInvalidReference(decodedToken)
 	}
 }
 
@@ -430,7 +462,7 @@ func offsetSingleObject(dec *json.Decoder, decodedToken string) (int64, error) {
 func offsetSingleArray(dec *json.Decoder, decodedToken string) (int64, error) {
 	idx, err := strconv.Atoi(decodedToken)
 	if err != nil {
-		return 0, fmt.Errorf("token reference %q is not a number: %v: %w", decodedToken, err, ErrPointer)
+		return 0, fmt.Errorf("token reference %q is not a number: %w: %w", decodedToken, err, ErrPointer)
 	}
 	var i int
 	for i = 0; i < idx && dec.More(); i++ {
@@ -461,6 +493,7 @@ func offsetSingleArray(dec *json.Decoder, decodedToken string) (int64, error) {
 }
 
 // drainSingle drains a single level of object or array.
+//
 // The decoder has to guarantee the beginning delim (i.e. '{' or '[') has been consumed.
 func drainSingle(dec *json.Decoder) error {
 	for dec.More() {
@@ -490,7 +523,7 @@ func drainSingle(dec *json.Decoder) error {
 	return nil
 }
 
-// Specific JSON pointer encoding here
+// JSON pointer encoding:
 // ~0 => ~
 // ~1 => /
 // ... and vice versa
@@ -507,12 +540,19 @@ var (
 	decRefTokReplacer = strings.NewReplacer(decRefTok1, encRefTok1, decRefTok0, encRefTok0) //nolint:gochecknoglobals // it's okay to declare a replacer as a private global
 )
 
-// Unescape unescapes a json pointer reference token string to the original representation
+// Unescape unescapes a json pointer reference token string to the original representation.
 func Unescape(token string) string {
 	return encRefTokReplacer.Replace(token)
 }
 
-// Escape escapes a pointer reference token string
+// Escape escapes a pointer reference token string.
+//
+// The JSONPointer specification defines "/" as a separator and "~" as an escape prefix.
+//
+// Keys containing such characters are escaped with the following rules:
+//
+//   - "~" is escaped as "~0"
+//   - "/" is escaped as "~1"
 func Escape(token string) string {
 	return decRefTokReplacer.Replace(token)
 }
