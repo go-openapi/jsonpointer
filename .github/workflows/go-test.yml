@@ -89,11 +89,71 @@ jobs:
           name: 'unit.report.${{ matrix.os }}-${{ matrix.go }}'
           retention-days: 1
 
+  fuzz-test:
+    name: fuzz test
+    runs-on: ubuntu-latest
+    env:
+      CORPUS_MAX_SIZE_MB: 100
+    steps:
+      -
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      -
+        uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
+        with:
+          go-version: stable
+          check-latest: true
+          cache: true
+      -
+        name: Locate go fuzz cache
+        run: |
+          GOCACHE=$(go env GOCACHE)
+          echo "CORPUS_DIR=${GOCACHE}/fuzz" >> "${GITHUB_ENV}"
+      -
+        uses: actions/cache@v3
+        with:
+          key: ${{ runner.os }}-go-fuzz
+          path:
+            ${{ env.CORPUS_DIR }}
+      -
+        name: Manage fuzz corpus cache size
+        run: |
+          mkdir -p "${CORPUS_DIR}"
+          CURRENT_SIZE=$(du -sm "${CORPUS_DIR}"|cut -f1)
+          echo "corpus size: ${CURRENT_SIZE}MB"
+          if [[ "${CURRENT_SIZE}" -gt "${CORPUS_MAX_SIZE}" ]] ; then
+            # remove the 50 oldest corpus files
+            echo "::warning:Large fuzz corpus pruned"
+            find "${CORPUS_DIR}" -type f|ls -t|tail -n +50|xargs rm -f
+          fi
+      -
+        name: Run go fuzz tests
+        run: >
+          go test
+          -fuzz=Fuzz
+          -run=Fuzz
+          -fuzztime=1m30s
+          -fuzzminimizetime=5m
+          ./...
+      -
+        name: Upload failed corpus
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          path: ${{ env.CORPUS_DIR }}
+          name: '${{ runner.os }}-fuzz-corpus-failure'
+          retention-days: 60
+      -
+        name: Report fuzz corpus cache size
+        run: |
+          FINAL_SIZE=$(du -m "${CORPUS_DIR}"|cut -f1)
+          echo "::notice title=fuzz corpus size:${FINAL_SIZE}MB"
+
+
   test-complete:
     # description: |
     #   Be explicit about all tests being passed. This allows for setting up only a few status checks on PRs.
     name: tests completed
-    needs: [test]
+    needs: [test,fuzz-test]
     runs-on: ubuntu-latest
     steps:
       -

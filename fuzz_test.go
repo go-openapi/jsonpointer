@@ -13,6 +13,7 @@ import (
 )
 
 func FuzzParse(f *testing.F) {
+	// initial seed
 	cumulated := make([]string, 0, 100)
 	for generator := range generators() {
 		f.Add(generator)
