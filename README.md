@@ -107,8 +107,8 @@ using the special trailing character "-" is not implemented.
 [codeql-badge]: https://github.com/go-openapi/jsonpointer/actions/workflows/codeql.yml/badge.svg
 [codeql-url]: https://github.com/go-openapi/jsonpointer/actions/workflows/codeql.yml
 <!-- Badges: release & docker images  -->
-[release-badge]: https://badge.fury.io/gh/go-openapi%2Fjsonpointer.svg
-[release-url]: https://badge.fury.io/gh/go-openapi%2Fjsonpointer
+[release-badge]: https://badge.fury.io/go/github.com%2Fgo-openapi%2Fjsonpointer.svg
+[release-url]: https://badge.fury.io/go/github.com%2Fgo-openapi%2Fjsonpointer
 <!-- Badges: code quality  -->
 [gocard-badge]: https://goreportcard.com/badge/github.com/go-openapi/jsonpointer
 [gocard-url]: https://goreportcard.com/report/github.com/go-openapi/jsonpointer

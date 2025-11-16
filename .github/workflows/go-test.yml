@@ -109,7 +109,8 @@ jobs:
           GOCACHE=$(go env GOCACHE)
           echo "CORPUS_DIR=${GOCACHE}/fuzz" >> "${GITHUB_ENV}"
       -
-        uses: actions/cache@v3
+        name: Retrieve fuzz corpus from cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           key: ${{ runner.os }}-go-fuzz
           path:
