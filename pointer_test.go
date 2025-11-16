@@ -6,9 +6,11 @@ package jsonpointer
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"strconv"
 	"testing"
 
+	"github.com/go-openapi/swag/jsonname"
 	"github.com/go-openapi/testify/v2/assert"
 	"github.com/go-openapi/testify/v2/require"
 )
@@ -246,6 +248,7 @@ func TestPointableInterface(t *testing.T) {
 
 	t.Run("with pointable type", func(t *testing.T) {
 		p := &pointableImpl{"hello"}
+
 		result, _, err := GetForToken(p, "some")
 		require.NoError(t, err)
 		assert.Equal(t, p.a, result)
@@ -346,6 +349,95 @@ func TestArray(t *testing.T) {
 	}
 }
 
+func TestStruct(t *testing.T) {
+	t.Parallel()
+
+	t.Run("with untagged struct field", func(t *testing.T) {
+		type Embedded struct {
+			D int `json:"d"`
+		}
+
+		s := struct {
+			Embedded
+
+			A         int `json:"a"`
+			B         int
+			Anonymous struct {
+				C int `json:"c"`
+			}
+		}{}
+
+		{
+			s.A = 1
+			s.B = 2
+			s.Anonymous.C = 3
+			s.D = 4
+		}
+
+		t.Run(`should resolve field A tagged "a"`, func(t *testing.T) {
+			pointerA, err := New("/a")
+			require.NoError(t, err)
+
+			value, kind, err := pointerA.Get(s)
+			require.NoError(t, err)
+			require.Equal(t, reflect.Int, kind)
+			require.Equal(t, 1, value)
+
+			_, err = pointerA.Set(&s, 9)
+			require.NoError(t, err)
+
+			value, _, err = pointerA.Get(s)
+			require.NoError(t, err)
+			require.Equal(t, 9, value)
+		})
+
+		t.Run(`should resolve embedded field D with tag`, func(t *testing.T) {
+			pointerD, err := New("/d")
+			require.NoError(t, err)
+
+			value, kind, err := pointerD.Get(s)
+			require.NoError(t, err)
+			require.Equal(t, reflect.Int, kind)
+			require.Equal(t, 4, value)
+
+			_, err = pointerD.Set(&s, 6)
+			require.NoError(t, err)
+
+			value, _, err = pointerD.Get(s)
+			require.NoError(t, err)
+			require.Equal(t, 6, value)
+		})
+
+		t.Run("with known limitations", func(t *testing.T) {
+			t.Run(`should not resolve field B without tag`, func(t *testing.T) {
+				pointerB, err := New("/B")
+				require.NoError(t, err)
+
+				_, _, err = pointerB.Get(s)
+				require.Error(t, err)
+				require.ErrorContains(t, err, `has no field "B"`)
+
+				_, err = pointerB.Set(&s, 8)
+				require.Error(t, err)
+				require.ErrorContains(t, err, `has no field "B"`)
+			})
+
+			t.Run(`should not resolve field C with tag, but anonymous`, func(t *testing.T) {
+				pointerC, err := New("/c")
+				require.NoError(t, err)
+
+				_, _, err = pointerC.Get(s)
+				require.Error(t, err)
+				require.ErrorContains(t, err, `has no field "c"`)
+
+				_, err = pointerC.Set(&s, 7)
+				require.Error(t, err)
+				require.ErrorContains(t, err, `has no field "c"`)
+			})
+		})
+	})
+}
+
 func TestOtherThings(t *testing.T) {
 	t.Parallel()
 
@@ -367,11 +459,21 @@ func TestOtherThings(t *testing.T) {
 	})
 
 	t.Run("out of bound array index should error", func(t *testing.T) {
-		p, err := New("/foo/3")
-		require.NoError(t, err)
+		t.Run("with index overflow", func(t *testing.T) {
+			p, err := New("/foo/3")
+			require.NoError(t, err)
 
-		_, _, err = p.Get(testDocumentJSON(t))
-		require.Error(t, err)
+			_, _, err = p.Get(testDocumentJSON(t))
+			require.Error(t, err)
+		})
+
+		t.Run("with index unerflow", func(t *testing.T) {
+			p, err := New("/foo/-3")
+			require.NoError(t, err)
+
+			_, _, err = p.Get(testDocumentJSON(t))
+			require.Error(t, err)
+		})
 	})
 
 	t.Run("referring to a key in an array should error", func(t *testing.T) {
@@ -906,5 +1008,102 @@ func TestEdgeCases(t *testing.T) {
 		require.NoError(t, err)
 
 		require.Equal(t, doc, newDoc)
+	})
+
+	t.Run("with out of bounds index", func(t *testing.T) {
+		p, err := New("/foo/10")
+		require.NoError(t, err)
+
+		t.Run("should error on Get", func(t *testing.T) {
+			_, _, err := p.Get(testStructJSONDoc(t))
+			require.Error(t, err)
+			require.ErrorContains(t, err, "index out of bounds")
+		})
+
+		t.Run("should error on Set", func(t *testing.T) {
+			_, err := p.Set(testStructJSONPtr(t), "peek-a-boo")
+			require.Error(t, err)
+			require.ErrorContains(t, err, "index out of bounds")
+		})
+	})
+
+	t.Run("Set with invalid pointer token", func(t *testing.T) {
+		doc := testStructJSONDoc(t)
+		pointer, err := New("/foo/x")
+		require.NoError(t, err)
+
+		_, err = pointer.Set(&doc, "yay")
+		require.Error(t, err)
+		require.ErrorContains(t, err, `Atoi: parsing "x"`)
+	})
+
+	t.Run("Set with invalid reference in struct", func(t *testing.T) {
+		doc := struct {
+			A func() `json:"a"`
+			B []int  `json:"b"`
+		}{
+			A: func() {},
+			B: []int{0, 1},
+		}
+
+		t.Run("should error when attempting to set a struct field value that is not assignable", func(t *testing.T) {
+			pointerA, err := New("/a")
+			require.NoError(t, err)
+
+			_, err = pointerA.Set(&doc, "waou")
+			require.Error(t, err)
+			require.ErrorContains(t, err, `can't set value with type string to field A`)
+		})
+
+		t.Run("should error when attempting to set a slice element value that is not assignable", func(t *testing.T) {
+			pointerB, err := New("/b/0")
+			require.NoError(t, err)
+
+			_, err = pointerB.Set(&doc, "waou")
+			require.Error(t, err)
+			require.ErrorContains(t, err, `can't set value with type string to slice element 0 with type int`)
+		})
+
+		t.Run("should error when attempting to set a value that does not exist", func(t *testing.T) {
+			pointerB, err := New("/x")
+			require.NoError(t, err)
+
+			_, _, err = pointerB.Get(&doc)
+			require.Error(t, err)
+			require.ErrorContains(t, err, `no field`)
+
+			_, err = pointerB.Set(&doc, "oops")
+			require.Error(t, err)
+			require.ErrorContains(t, err, `no field`)
+		})
+	})
+}
+
+func TestInternalEdgeCases(t *testing.T) {
+	t.Parallel()
+
+	t.Run("setSingleImpl should error on any node not a struct, map or slice", func(t *testing.T) {
+		var node int
+
+		err := setSingleImpl(&node, 3, "a", jsonname.DefaultJSONNameProvider)
+		require.Error(t, err)
+		require.ErrorContains(t, err, `invalid token reference "a"`)
+	})
+
+	t.Run("with simulated unsettable", func(t *testing.T) {
+		type unsettable struct {
+			A string `json:"a"`
+		}
+		doc := unsettable{
+			A: "a",
+		}
+
+		t.Run("setSingleImpl should error on struct field that is not settable", func(t *testing.T) {
+			node := doc // doesn't pass a pointer: unsettable
+
+			err := setSingleImpl(node, "new value", "a", jsonname.DefaultJSONNameProvider)
+			require.Error(t, err)
+			require.ErrorContains(t, err, `can't set struct field`)
+		})
 	})
 }

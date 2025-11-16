@@ -45,6 +45,7 @@ type JSONSetable interface {
 //   - a go map[K]V is interpreted as an object, with type K assignable to a string
 //   - a go slice []T is interpreted as an array
 //   - a go struct is interpreted as an object, with exported fields interpreted as keys
+//   - promoted fields from an embedded struct are traversed
 //   - scalars (e.g. int, float64 ...), channels, functions and go arrays cannot be traversed
 //
 // For struct s resolved by reflection, key mappings honor the conventional struct tag `json`.
@@ -54,7 +55,7 @@ type JSONSetable interface {
 // # Limitations
 //
 //   - Unlike go standard marshaling, untagged fields do not default to the go field name and are ignored.
-//   - anonymous embedded fields are not traversed
+//   - anonymous fields are not traversed if untagged
 type Pointer struct {
 	referenceTokens []string
 }
@@ -362,7 +363,7 @@ func getSingleImpl(node any, decodedToken string, nameProvider *jsonname.NamePro
 	case reflect.Slice:
 		tokenIndex, err := strconv.Atoi(decodedToken)
 		if err != nil {
-			return nil, kind, err
+			return nil, kind, errors.Join(err, ErrPointer)
 		}
 		sLength := rValue.Len()
 		if tokenIndex < 0 || tokenIndex >= sLength {
@@ -378,9 +379,7 @@ func getSingleImpl(node any, decodedToken string, nameProvider *jsonname.NamePro
 }
 
 func setSingleImpl(node, data any, decodedToken string, nameProvider *jsonname.NameProvider) error {
-	rValue := reflect.Indirect(reflect.ValueOf(node))
-
-	// Check for nil to prevent panic when calling rValue.Type()
+	// check for nil to prevent panic when calling rValue.Type()
 	if isNil(node) {
 		return fmt.Errorf("cannot set field %q on nil value: %w", decodedToken, ErrPointer)
 	}
@@ -389,28 +388,44 @@ func setSingleImpl(node, data any, decodedToken string, nameProvider *jsonname.N
 		return ns.JSONSet(decodedToken, data)
 	}
 
+	rValue := reflect.Indirect(reflect.ValueOf(node))
+
 	switch rValue.Kind() {
 	case reflect.Struct:
 		nm, ok := nameProvider.GetGoNameForType(rValue.Type(), decodedToken)
 		if !ok {
 			return fmt.Errorf("object has no field %q: %w", decodedToken, ErrPointer)
 		}
+
 		fld := rValue.FieldByName(nm)
-		if fld.IsValid() {
-			fld.Set(reflect.ValueOf(data))
+		if !fld.CanSet() {
+			return fmt.Errorf("can't set struct field %s to %v: %w", nm, data, ErrPointer)
 		}
+
+		value := reflect.ValueOf(data)
+		valueType := value.Type()
+		assignedType := fld.Type()
+
+		if !valueType.AssignableTo(assignedType) {
+			return fmt.Errorf("can't set value with type %T to field %s with type %v: %w", data, nm, assignedType, ErrPointer)
+		}
+
+		fld.Set(value)
+
 		return nil
 
 	case reflect.Map:
 		kv := reflect.ValueOf(decodedToken)
 		rValue.SetMapIndex(kv, reflect.ValueOf(data))
+
 		return nil
 
 	case reflect.Slice:
 		tokenIndex, err := strconv.Atoi(decodedToken)
 		if err != nil {
-			return err
+			return errors.Join(err, ErrPointer)
 		}
+
 		sLength := rValue.Len()
 		if tokenIndex < 0 || tokenIndex >= sLength {
 			return errOutOfBounds(sLength, tokenIndex)
@@ -420,7 +435,17 @@ func setSingleImpl(node, data any, decodedToken string, nameProvider *jsonname.N
 		if !elem.CanSet() {
 			return fmt.Errorf("can't set slice index %s to %v: %w", decodedToken, data, ErrPointer)
 		}
-		elem.Set(reflect.ValueOf(data))
+
+		value := reflect.ValueOf(data)
+		valueType := value.Type()
+		assignedType := elem.Type()
+
+		if !valueType.AssignableTo(assignedType) {
+			return fmt.Errorf("can't set value with type %T to slice element %d with type %v: %w", data, tokenIndex, assignedType, ErrPointer)
+		}
+
+		elem.Set(value)
+
 		return nil
 
 	default:
