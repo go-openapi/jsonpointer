@@ -10,6 +10,8 @@ import (
 var ErrExampleIface = errors.New("example error")
 
 type ExampleDoc struct {
+	PromotedDoc
+
 	Promoted     EmbeddedDoc `json:"promoted"`
 	AnonPromoted EmbeddedDoc `json:"-"`
 	A            string      `json:"propA"`
@@ -23,8 +25,15 @@ type EmbeddedDoc struct {
 	B string `json:"propB"`
 }
 
+type PromotedDoc struct {
+	C string `json:"propC"`
+}
+
 func Example_struct() {
 	doc := ExampleDoc{
+		PromotedDoc: PromotedDoc{
+			C: "c",
+		},
 		Promoted: EmbeddedDoc{
 			B: "promoted",
 		},
@@ -43,15 +52,27 @@ func Example_struct() {
 		}
 		fmt.Printf("a: %v\n", a)
 	}
+
 	{
-		// tagged embedded field is resolved
+		// tagged struct field is resolved
 		pointerB, _ := jsonpointer.New("/promoted/propB")
-		a, _, err := pointerB.Get(doc)
+		b, _, err := pointerB.Get(doc)
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
-		fmt.Printf("b: %v\n", a)
+		fmt.Printf("b: %v\n", b)
+	}
+
+	{
+		// tagged embedded field is resolved
+		pointerC, _ := jsonpointer.New("/propC")
+		c, _, err := pointerC.Get(doc)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		fmt.Printf("c: %v\n", c)
 	}
 
 	{
@@ -69,7 +90,7 @@ func Example_struct() {
 	}
 
 	{
-		// Limitation: anonymous embedded field is not resolved.
+		// Limitation: anonymous field is not resolved.
 		pointerC, _ := jsonpointer.New("/propB")
 		_, _, err := pointerC.Get(doc)
 		fmt.Printf("anonymous: %v\n", err)
@@ -85,6 +106,7 @@ func Example_struct() {
 	// output:
 	// a: a
 	// b: promoted
+	// c: c
 	// ignored: object has no field "ignored": JSON pointer error
 	// unexported: object has no field "unexported": JSON pointer error
 	// anonymous: object has no field "propB": JSON pointer error
