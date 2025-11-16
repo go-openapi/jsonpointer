@@ -51,3 +51,24 @@ jobs:
           GH_TOKEN: ${{secrets.GITHUB_TOKEN}}
         run: gh pr merge --auto --rebase "$PR_URL"
 
+  # Auto merge is current disabled: we need automatic PRs to swap identity (e.g. using a Github App),
+  # so the pull_request event is properly captured and the PR can validate.
+  #actions-bot:
+  #  permissions:
+  #    contents: write
+  #    pull-requests: write
+  #  runs-on: ubuntu-latest
+  #  if: ${{ github.event.pull_request.user.login == 'github-actions[bot]' }}
+  #  steps:
+  #    -
+  #      name: Auto-approve all github-actions bot PRs
+  #      env:
+  #        PR_URL: ${{github.event.pull_request.html_url}}
+  #        GH_TOKEN: ${{secrets.GITHUB_TOKEN}}
+  #      run: gh pr review --approve "$PR_URL"
+  #    -
+  #      name: Auto-merge github-actions bot PRs
+  #      env:
+  #        PR_URL: ${{github.event.pull_request.html_url}}
+  #        GH_TOKEN: ${{secrets.GITHUB_TOKEN}}
+  #      run: gh pr merge --auto --rebase "$PR_URL"
