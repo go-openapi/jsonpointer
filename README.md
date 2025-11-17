@@ -97,6 +97,13 @@ That is because our implementation of the JSON pointer only supports explicit re
 the provision in the spec to resolve non-existent members as "the last element in the array",
 using the special trailing character "-" is not implemented.
 
+## Other documentation
+
+* [All-time contributors](./CONTRIBUTORS.md)
+* [Contributing guidelines](.github/CONTRIBUTING.md)
+* [Maintainers documentation](docs/MAINTAINERS.md)
+* [Code style](docs/STYLE.md)
+
 <!-- Badges: status  -->
 [test-badge]: https://github.com/go-openapi/jsonpointer/actions/workflows/go-test.yml/badge.svg
 [test-url]: https://github.com/go-openapi/jsonpointer/actions/workflows/go-test.yml
