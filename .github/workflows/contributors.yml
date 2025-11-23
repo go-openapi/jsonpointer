@@ -43,6 +43,7 @@ jobs:
         title: "doc: updated contributors file"
         token: ${{ secrets.GITHUB_TOKEN }}
         labels: "bot"
+        draft: true
         assignees: fredbi
         reviewers: fredbi
         sign-commits: true

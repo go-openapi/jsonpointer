@@ -36,9 +36,11 @@ jobs:
           %(contents:body)
           ')
           export MESSAGE
-          echo "message<<EOF" >> "${GITHUB_OUTPUT}"
-          printenv MESSAGE >> "${GITHUB_OUTPUT}"
-          echo 'EOF' >> "${GITHUB_OUTPUT}"
+          {
+            echo "message<<EOF"
+            printenv MESSAGE
+            echo 'EOF'
+          } >> "${GITHUB_OUTPUT}"
       -
         name: Generate release notes
         id: notes

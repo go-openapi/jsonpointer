@@ -8,7 +8,7 @@ on:
     branches: [ "master" ]
   pull_request:
     branches: [ "master" ]
-    path-ignore:
+    paths-ignore:
       - '**/*.md'
   schedule:
     - cron: '39 19 * * 5'

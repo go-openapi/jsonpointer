@@ -52,10 +52,8 @@ jobs:
           check-latest: true
           cache: true
       -
-        name: Install Tools
-        # TODO: pin version -> fork + update dedicated github action
-        run: |
-          go install gotest.tools/gotestsum@latest
+        name: Install gotestsum
+        uses: go-openapi/gh-actions/install/gotestsum@b54cc4ecd2b7e4e255a89c1e8ae71eff84698e1c
       -
         name: Run unit tests
         shell: bash
@@ -69,7 +67,7 @@ jobs:
           -timeout=20m
           -coverprofile='unit.coverage.${{ matrix.os }}-${{ matrix.go }}.out'
           -covermode=atomic
-          -coverpkg=$(go list)/...
+          -coverpkg="$(go list)"/...
           ./...
       -
         name: Upload coverage artifacts
@@ -88,67 +86,6 @@ jobs:
           path: '**/unit.report.*.json'
           name: 'unit.report.${{ matrix.os }}-${{ matrix.go }}'
           retention-days: 1
-
-  fuzz-test:
-    name: fuzz test
-    runs-on: ubuntu-latest
-    env:
-      CORPUS_MAX_SIZE_MB: 100
-    steps:
-      -
-        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
-      -
-        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
-        with:
-          go-version: stable
-          check-latest: true
-          cache: true
-      -
-        name: Locate go fuzz cache
-        run: |
-          GOCACHE=$(go env GOCACHE)
-          echo "CORPUS_DIR=${GOCACHE}/fuzz" >> "${GITHUB_ENV}"
-      -
-        name: Retrieve fuzz corpus from cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          key: ${{ runner.os }}-go-fuzz
-          path:
-            ${{ env.CORPUS_DIR }}
-      -
-        name: Manage fuzz corpus cache size
-        run: |
-          mkdir -p "${CORPUS_DIR}"
-          CURRENT_SIZE=$(du -sm "${CORPUS_DIR}"|cut -f1)
-          echo "corpus size: ${CURRENT_SIZE}MB"
-          if [[ "${CURRENT_SIZE}" -gt "${CORPUS_MAX_SIZE}" ]] ; then
-            # remove the 50 oldest corpus files
-            echo "::warning:Large fuzz corpus pruned"
-            find "${CORPUS_DIR}" -type f|ls -t|tail -n +50|xargs rm -f
-          fi
-      -
-        name: Run go fuzz tests
-        run: >
-          go test
-          -fuzz=Fuzz
-          -run=Fuzz
-          -fuzztime=1m30s
-          -fuzzminimizetime=5m
-          ./...
-      -
-        name: Upload failed corpus
-        if: ${{ failure() }}
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-        with:
-          path: ${{ env.CORPUS_DIR }}
-          name: '${{ runner.os }}-fuzz-corpus-failure'
-          retention-days: 60
-      -
-        name: Report fuzz corpus cache size
-        run: |
-          FINAL_SIZE=$(du -m "${CORPUS_DIR}"|cut -f1)
-          echo "::notice title=fuzz corpus size:${FINAL_SIZE}MB"
-
 
   test-complete:
     # description: |
@@ -207,12 +144,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       -
-        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
-        with:
-          go-version: stable
-          check-latest: true
-          cache: true
-      -
         name: Download test report artifacts
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
@@ -221,6 +152,9 @@ jobs:
           # artifacts resolve as folders
           path: reports/
       -
+        name: Install go-junit-report
+        uses: go-openapi/gh-actions/install/go-junit-report@b54cc4ecd2b7e4e255a89c1e8ae71eff84698e1c
+      -
         name: Convert test reports to a merged JUnit XML
         # NOTE: codecov test reports only support JUnit format at this moment. See https://docs.codecov.com/docs/test-analytics.
         # Ideally, codecov improve a bit their platform, so we may only need a single pass to CTRF format.
@@ -228,14 +162,10 @@ jobs:
         # As a contemplated alternative, we could use gotestsum above to produce the JUnit XML directly.
         # At this moment, we keep a json format to dispatch test reports to codecov as well as to CTRF reports.
         #
-        # TODO(fredbi): sec compliance - pin go-junit-report
         # TODO(fredbi): investigate - use mikepenz/action-junit-report@v5, that packages most of the following scripts
         # in a single action. Alternative: for that action.
         run: |
-          go install github.com/jstemmer/go-junit-report/v2@latest
-          go-junit-report -version
-
-          find reports/ -name \*.json | xargs cat | go-junit-report -parser gojson -out=reports/junit_report.xml
+          find reports/ -name \*.json -print0 | xargs -0 cat | go-junit-report -parser gojson -out=reports/junit_report.xml
       -
         name: Upload test results to Codecov
         # This allows for using the test results UI on codecov
@@ -247,13 +177,19 @@ jobs:
           handle_no_reports_found: true
           verbose: true
       -
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
+        with:
+          go-version: stable
+          check-latest: true
+          cache: true
+      -
+        name: Install go-ctrf-json-reporter
+        uses: go-openapi/gh-actions/install/go-ctrf-json-reporter@b54cc4ecd2b7e4e255a89c1e8ae71eff84698e1c
+      -
         name: Convert test reports to CTRF JSON
         # description: |
         #   This step publishes CTRF test reports on github UI (actions)
-        # TODO: pin this dependency
         run: |
-          go install github.com/ctrf-io/go-ctrf-json-reporter/cmd/go-ctrf-json-reporter@v0.0.10
-
           appName="${{ github.repository }}"
           buildNumber="${{ github.run_id }}"
           appVersion="${{ github.event.pull_request.head.sha }}"
@@ -263,11 +199,9 @@ jobs:
           fi
 
           # reconstruct platform information from the file name
-          # set -x
-          while read report ; do
-            # 'unit.report.${{ matrix.os }}-${{ matrix.go }}.json'
+          while read -r report ; do
             reformated=$(echo "${report##*/}"|sed -E 's/(go)([[:digit:]]+)\.([[:digit:]]+)/\1\2\3/') # e.g. go1.24 becomes go124
-            mapfile -d'.' -t -s 2 -n 2 split < <(echo $reformated) # skip the first 2 parts, stop on 2 more parts
+            mapfile -d'.' -t -s 2 -n 2 split < <(echo "$reformated") # skip the first 2 parts, stop on 2 more parts
             envstring="${split[0]}"
             osPlatform="${envstring%-*}"
             osRelease="${envstring##*-}"
@@ -306,3 +240,109 @@ jobs:
           summary-report: true             # post a report to the github actions summary
           github-report: true
           failed-folded-report: true
+
+  fuzz-test:
+    name: fuzz test
+    runs-on: ubuntu-latest
+    env:
+      CORPUS_MAX_SIZE_MB: 250
+      FUZZ_TIME: 1m30s
+      FUZZ_MINIMIZE_TIME: 5m
+    steps:
+      -
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+      -
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
+        with:
+          go-version: stable
+          check-latest: true
+          cache: true
+      -
+        name: Locate go fuzz cache
+        run: |
+          GOCACHE=$(go env GOCACHE)
+          echo "CORPUS_DIR=${GOCACHE}/fuzz" >> "${GITHUB_ENV}"
+      -
+        name: Retrieve fuzz corpus from cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          key: ${{ runner.os }}-go-fuzz
+          path:
+            ${{ env.CORPUS_DIR }}
+      -
+        name: Manage fuzz corpus cache size
+        run: |
+          mkdir -p "${CORPUS_DIR}"
+          # This script checks that the size of the corpus cache doesn't exceed ${CORPUS_MAX_SIZE_MB},
+          # and if it does, it removes all oldest files beyond that size.
+
+          function size() {
+            local location=$1
+            local unit=$2
+
+            du -s"${unit}" "${location}"|cut -f1
+          }
+
+          function purge() {
+            local location=$1
+            local max_size_b=$2
+            declare -i current_size_b=0 file_size_b=0 purged_files=0
+
+            while read -r filename ; do
+              file_size_b="$(size "${filename}" "b")"
+              ((current_size_b+=file_size_b))
+
+              if [[ ${current_size_b} -le ${max_size_b} ]] ; then
+                continue
+              fi
+              if [[ ${file_size_b} -eq 0 ]] ; then
+                continue
+              fi
+
+              rm -f "${filename}"
+              ((purged_files+=1))
+            done < <(find "${location}" -type f -print0 | xargs -0 ls -t)
+
+            echo ${purged_files}
+          }
+
+          CURRENT_SIZE_MB="$(size "${CORPUS_DIR}" "m")"
+          if [[ "${CURRENT_SIZE_MB}" -lt "${MAX_SIZE_MB}" ]] ; then
+            echo "::notice:cache size remains under the accepted size of ${MAX_SIZE_MB} MB: ${CURRENT_SIZE_MB} MB"
+
+            exit 0
+          fi
+
+          declare -i max_size_b=$(("${CORPUS_MAX_SIZE_MB}" * 1024 * 1024))
+          purged_files=$(purge "${purged_dir}" "${max_size_b}");
+          echo "::notice:cache size is ${CURRENT_SIZE_MB} MB: purging oldest files to keep it under ${CORPUS_MAX_SIZE_MB} MB"
+          if [[ ${purged_files} -gt 0 ]] ; then
+            echo "::notice:removed ${purged_files} files to keep the cache size below ${CORPUS_MAX_SIZE_MB} MB"
+          fi
+          FINAL_SIZE_MB="$(size "${CORPUS_DIR}" "m")"
+          echo "::notice:purged cache size: ${FINAL_SIZE_MB} MB"
+      -
+        name: Run go fuzz tests
+        # TODO(fredbi): ./... is not supported: we should run as a matrix test multiple fuzz tests
+        run: >
+          go test
+          -fuzz=Fuzz
+          -run=Fuzz
+          -fuzztime='${{ env.FUZZ_TIME }}'
+          -fuzzminimizetime='${{ env.FUZZ_MINIMIZE_TIME }}'
+          ./...
+      -
+        name: Upload failed corpus
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        # TODO(fredbi): ideally, after uploading, we should fire a pull request to add
+        # this corpus to testdata.
+        with:
+          path: ${{ env.CORPUS_DIR }}
+          name: '${{ runner.os }}-fuzz-corpus-failure'
+          retention-days: 60
+      -
+        name: Report fuzz corpus cache size
+        run: |
+          FINAL_SIZE=$(du -m "${CORPUS_DIR}"|cut -f1)
+          echo "::notice title=fuzz corpus size:${FINAL_SIZE}MB"
