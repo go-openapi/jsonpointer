@@ -27,10 +27,10 @@ jobs:
           fetch-depth: 0
       -
         name: Extract tag message
-        id: get_message
-        # git-cliff may or may not pick the current tag message, difficult to tell when
-        # this works. We extract the tag message explicitly.
+        id: get-message
+        # tag message is not retrieved unless with fetch the ref explictly
         run: |
+          git fetch --depth=1 origin +refs/tags/*:refs/tags/*
           MESSAGE=$(git tag -l '${{ github.ref_name }}' --format='%(contents:subject)
 
           %(contents:body)
@@ -41,6 +41,9 @@ jobs:
             printenv MESSAGE
             echo 'EOF'
           } >> "${GITHUB_OUTPUT}"
+
+          echo "Message in git tag ${{ github.ref_name }}"
+          echo "$MESSAGE"
       -
         name: Generate release notes
         id: notes
@@ -52,9 +55,10 @@ jobs:
           config: '.cliff.toml'
           args: >-
             --current
-            --with-tag-message '${{ steps.get_message.outputs.message }}'
+            --with-tag-message '${{ steps.get-message.outputs.message }}'
       -
         name: Create github release
         uses: softprops/action-gh-release@5be0e66d93ac7ed76da52eca8bb058f665c3a5fe # v2.4.2
         with:
           body: ${{ steps.notes.outputs.content }}
+          generate_release_notes: false
