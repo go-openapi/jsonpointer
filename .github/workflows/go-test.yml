@@ -53,7 +53,7 @@ jobs:
           cache: true
       -
         name: Install gotestsum
-        uses: go-openapi/gh-actions/install/gotestsum@b54cc4ecd2b7e4e255a89c1e8ae71eff84698e1c
+        uses: go-openapi/gh-actions/install/gotestsum@2c8f8152814933c4cead92a51558699238ee9565
       -
         name: Run unit tests
         shell: bash
@@ -153,7 +153,7 @@ jobs:
           path: reports/
       -
         name: Install go-junit-report
-        uses: go-openapi/gh-actions/install/go-junit-report@b54cc4ecd2b7e4e255a89c1e8ae71eff84698e1c
+        uses: go-openapi/gh-actions/install/go-junit-report@2c8f8152814933c4cead92a51558699238ee9565
       -
         name: Convert test reports to a merged JUnit XML
         # NOTE: codecov test reports only support JUnit format at this moment. See https://docs.codecov.com/docs/test-analytics.
@@ -184,7 +184,7 @@ jobs:
           cache: true
       -
         name: Install go-ctrf-json-reporter
-        uses: go-openapi/gh-actions/install/go-ctrf-json-reporter@b54cc4ecd2b7e4e255a89c1e8ae71eff84698e1c
+        uses: go-openapi/gh-actions/install/go-ctrf-json-reporter@2c8f8152814933c4cead92a51558699238ee9565
       -
         name: Convert test reports to CTRF JSON
         # description: |
