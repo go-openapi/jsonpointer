@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       -
-        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
       -
         uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
         with:
@@ -26,7 +26,7 @@ jobs:
           cache: true
       -
         name: golangci-lint
-        uses: golangci/golangci-lint-action@e7fa5ac41e1cf5b7d48e45e42232ce7ada589601 # v9.1.0
+        uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20 # v9.2.0
         with:
           version: latest
           only-new-issues: true
@@ -44,7 +44,7 @@ jobs:
 
     steps:
       -
-        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
       -
         uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
         with:
@@ -53,7 +53,7 @@ jobs:
           cache: true
       -
         name: Install gotestsum
-        uses: go-openapi/gh-actions/install/gotestsum@2c8f8152814933c4cead92a51558699238ee9565
+        uses: go-openapi/gh-actions/install/gotestsum@ca5928fe952ce03d9e6a61a8284a508a9cc8d4f1
       -
         name: Run unit tests
         shell: bash
@@ -109,7 +109,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       -
-        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           ref: ${{ github.event.pull_request.head.ref }}
           repository: ${{ github.event.pull_request.head.repo.full_name }}
@@ -153,7 +153,7 @@ jobs:
           path: reports/
       -
         name: Install go-junit-report
-        uses: go-openapi/gh-actions/install/go-junit-report@2c8f8152814933c4cead92a51558699238ee9565
+        uses: go-openapi/gh-actions/install/go-junit-report@ca5928fe952ce03d9e6a61a8284a508a9cc8d4f1
       -
         name: Convert test reports to a merged JUnit XML
         # NOTE: codecov test reports only support JUnit format at this moment. See https://docs.codecov.com/docs/test-analytics.
@@ -184,7 +184,7 @@ jobs:
           cache: true
       -
         name: Install go-ctrf-json-reporter
-        uses: go-openapi/gh-actions/install/go-ctrf-json-reporter@2c8f8152814933c4cead92a51558699238ee9565
+        uses: go-openapi/gh-actions/install/go-ctrf-json-reporter@ca5928fe952ce03d9e6a61a8284a508a9cc8d4f1
       -
         name: Convert test reports to CTRF JSON
         # description: |
@@ -250,7 +250,7 @@ jobs:
       FUZZ_MINIMIZE_TIME: 5m
     steps:
       -
-        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
       -
         uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
         with:

@@ -19,10 +19,10 @@ jobs:
     steps:
     -
       name: Checkout repository
-      uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
     -
       name: Identify all-time contributors to this repository
-      uses: github/contributors@abf36819e840f6e8056dcd40d33003ce7c4bc8dd # v1.7.6
+      uses: github/contributors@e345de71bbd056a34a70709afd4f4bf0a270cc1a # v1.7.7
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         REPOSITORY:  ${{ github.repository }}
