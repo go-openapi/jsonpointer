@@ -1,17 +1,5 @@
 name: Vulnerability scans
 
-permissions: read-all
-
-# description: |
-#   A fast vulnerability scan on the repo that effectively supplements ossf scorecard and codesql
-#   and may run every day.
-#
-#   * trivy reports are often more easily actionable than codeql reports.
-#   * govumnscan supplements this analysis with a more go-specific approach
-#
-# NOTE: at this moment, we don't want to adopt snyk, which requires a token, provides an extra dashboard etc.
-# Most likely, snyk would be redundant with trivy.
-
 on:
   branch_protection_rule:
   push:
@@ -19,51 +7,13 @@ on:
   schedule:
     - cron: '18 4 * * 3'
 
-jobs:
-  analysis:
-    name: Vulnerability scan
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      security-events: write
-    steps:
-      -
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-        with:
-          persist-credentials: false
-      -
-        name: Vulnerability scan by trivy
-        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # v0.33.1
-        with:
-          scan-type: repo
-          format: sarif
-          hide-progress: false
-          output: trivy-code-report.sarif
-          scanners: vuln,secret
-          exit-code: 0
-      -
-        name: Upload trivy findings to code scanning dashboard
-        uses: github/codeql-action/upload-sarif@fe4161a26a8629af62121b670040955b330f9af2 # v4.31.6
-        with:
-          category: trivy
-          sarif_file: trivy-code-report.sarif
+permissions:
+  contents: read
 
-  govulnscan:
-    name: go vulnerability scan
-    runs-on: ubuntu-latest
+jobs:
+  scanners:
     permissions:
       contents: read
       security-events: write
-    steps:
-      -
-        id: govulncheck
-        uses: golang/govulncheck-action@b625fbe08f3bccbe446d94fbf87fcc875a4f50ee # v1.0.4
-        with:
-          output-format: sarif
-          output-file: govulnscan-report.sarif
-      -
-        name: Upload govulnscan findings to code scanning dashboard
-        uses: github/codeql-action/upload-sarif@fe4161a26a8629af62121b670040955b330f9af2 # v4.31.6
-        with:
-          category: govulnscan
-          sarif_file: govulnscan-report.sarif
+    uses: go-openapi/ci-workflows/.github/workflows/scanner.yml@d0b50195d14745b9a9a8a41cf3bb7ecd874af37a # V0.1.1
+    secrets: inherit

@@ -1,74 +1,15 @@
 name: Dependabot auto-merge
-on: pull_request
 
 permissions:
   contents: read
+
+on:
+  pull_request:
 
 jobs:
   dependabot:
     permissions:
       contents: write
       pull-requests: write
-    runs-on: ubuntu-latest
-    if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' }}
-    steps:
-      -
-        name: Dependabot metadata
-        id: metadata
-        uses: dependabot/fetch-metadata@08eff52bf64351f401fb50d4972fa95b9f2c2d1b # v2.4.0
-      -
-        name: Auto-approve all dependabot PRs
-        env:
-          PR_URL: ${{github.event.pull_request.html_url}}
-          GH_TOKEN: ${{secrets.GITHUB_TOKEN}}
-        run: gh pr review --approve "$PR_URL"
-      -
-        name: Auto-merge dependabot PRs for development dependencies
-        if: ${{ contains(steps.metadata.outputs.dependency-group, 'development-dependencies') }}
-        env:
-          PR_URL: ${{github.event.pull_request.html_url}}
-          GH_TOKEN: ${{secrets.GITHUB_TOKEN}}
-        run: gh pr merge --auto --rebase "$PR_URL"
-      -
-        name: Auto-merge dependabot PRs for go-openapi patches
-        if: >-
-          ${{
-            contains(steps.metadata.outputs.dependency-group, 'go-openapi-dependencies') &&
-            (
-              steps.metadata.outputs.update-type == 'version-update:semver-minor' ||
-              steps.metadata.outputs.update-type == 'version-update:semver-patch'
-            )
-          }}
-        env:
-          PR_URL: ${{github.event.pull_request.html_url}}
-          GH_TOKEN: ${{secrets.GITHUB_TOKEN}}
-        run: gh pr merge --auto --rebase "$PR_URL"
-      -
-        name: Auto-merge dependabot PRs for golang.org updates
-        if: ${{ contains(steps.metadata.outputs.dependency-group, 'golang-org-dependencies') }}
-        env:
-          PR_URL: ${{github.event.pull_request.html_url}}
-          GH_TOKEN: ${{secrets.GITHUB_TOKEN}}
-        run: gh pr merge --auto --rebase "$PR_URL"
-
-  # Auto merge is current disabled: we need automatic PRs to swap identity (e.g. using a Github App),
-  # so the pull_request event is properly captured and the PR can validate.
-  #actions-bot:
-  #  permissions:
-  #    contents: write
-  #    pull-requests: write
-  #  runs-on: ubuntu-latest
-  #  if: ${{ github.event.pull_request.user.login == 'github-actions[bot]' }}
-  #  steps:
-  #    -
-  #      name: Auto-approve all github-actions bot PRs
-  #      env:
-  #        PR_URL: ${{github.event.pull_request.html_url}}
-  #        GH_TOKEN: ${{secrets.GITHUB_TOKEN}}
-  #      run: gh pr review --approve "$PR_URL"
-  #    -
-  #      name: Auto-merge github-actions bot PRs
-  #      env:
-  #        PR_URL: ${{github.event.pull_request.html_url}}
-  #        GH_TOKEN: ${{secrets.GITHUB_TOKEN}}
-  #      run: gh pr merge --auto --rebase "$PR_URL"
+    uses: go-openapi/ci-workflows/.github/workflows/auto-merge.yml@d0b50195d14745b9a9a8a41cf3bb7ecd874af37a # v0.1.1
+    secrets: inherit

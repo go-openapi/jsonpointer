@@ -1,41 +1,22 @@
 name: "CodeQL"
 
-permissions:
-  contents: read
-
 on:
   push:
     branches: [ "master" ]
   pull_request:
     branches: [ "master" ]
-    paths-ignore:
+    paths-ignore: # remove this clause if CodeQL is a required check
       - '**/*.md'
   schedule:
     - cron: '39 19 * * 5'
 
+permissions:
+  contents: read
+
 jobs:
-  analyze:
-    name: Analyze.
-    runs-on: ubuntu-latest
-    timeout-minutes: 360
+  codeql:
     permissions:
       contents: read
       security-events: write
-      # actions: read # <- is needed only for private repositories
-    strategy:
-      fail-fast: false
-      matrix:
-        language: ['go','actions']
-    steps:
-    -
-      name: Checkout repository
-      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-    -
-      # Initializes the CodeQL tools for scanning.
-      name: Initialize CodeQL
-      uses: github/codeql-action/init@fe4161a26a8629af62121b670040955b330f9af2 # v4.31.6
-      with:
-        languages: ${{ matrix.language }}
-    -
-      name: Analyze ${{ matrix.language }}
-      uses: github/codeql-action/analyze@fe4161a26a8629af62121b670040955b330f9af2 # v4.31.6
+    uses: go-openapi/ci-workflows/.github/workflows/codeql.yml@d0b50195d14745b9a9a8a41cf3bb7ecd874af37a # v0.1.1
+    secrets: inherit
