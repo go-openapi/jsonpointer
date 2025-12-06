@@ -1,49 +1,18 @@
 name: Contributors
 
-permissions:
-  contents: read
-
 on:
   schedule:
     - cron: '18 4 * * 6'
 
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
-  update-contributors:
-    name: all-time contributors
+  contributors:
     permissions:
       pull-requests: write
       contents: write
-    runs-on: ubuntu-latest
-    steps:
-    -
-      name: Checkout repository
-      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-    -
-      name: Identify all-time contributors to this repository
-      uses: github/contributors@e345de71bbd056a34a70709afd4f4bf0a270cc1a # v1.7.7
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        REPOSITORY:  ${{ github.repository }}
-        LINK_TO_PROFILE: 'True'
-    -
-      name: Rename contributor file
-      run: |
-        rm -rf contributors.json
-        mv contributors.md CONTRIBUTORS.md
-    -
-      name: Create a PR
-      id: create-pull-request
-      uses: peter-evans/create-pull-request@84ae59a2cdc2258d6fa0732dd66352dddae2a412 # v7.0.9
-      with:
-        commit-message: "doc: updated contributors file"
-        branch: doc/contributors-bot
-        delete-branch: true
-        title: "doc: updated contributors file"
-        token: ${{ secrets.GITHUB_TOKEN }}
-        labels: "bot"
-        draft: true
-        assignees: fredbi
-        reviewers: fredbi
-        sign-commits: true
+    uses: go-openapi/ci-workflows/.github/workflows/contributors.yml@d0b50195d14745b9a9a8a41cf3bb7ecd874af37a # v0.1.1
+    secrets: inherit

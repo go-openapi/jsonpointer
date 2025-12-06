@@ -4,7 +4,7 @@ You'll find below general guidelines, which mostly correspond to standard practi
 
 >**TL;DR**
 >
-> If you're already an experience go developer on github, then you should just feel at home with us
+> If you're already an experienced go developer on github, then you should just feel at home with us
 > and you may well skip the rest of this document.
 >
 > You'll essentially find the usual guideline for a go library project on github.
