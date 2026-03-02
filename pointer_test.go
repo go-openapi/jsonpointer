@@ -44,35 +44,35 @@ func TestEscaping(t *testing.T) {
 
 			t.Run("unescaping an escaped string should yield the original", func(t *testing.T) {
 				esc := Escape(original)
-				assert.Equal(t, "a~1", esc)
+				assert.EqualT(t, "a~1", esc)
 
 				unesc := Unescape(esc)
-				assert.Equal(t, original, unesc)
+				assert.EqualT(t, original, unesc)
 			})
 		})
 
 		t.Run("with multiple escapes", func(t *testing.T) {
 			unesc := Unescape("~01")
-			assert.Equal(t, "~1", unesc)
-			assert.Equal(t, "~01", Escape(unesc))
+			assert.EqualT(t, "~1", unesc)
+			assert.EqualT(t, "~01", Escape(unesc))
 
 			const (
 				original = "~/"
 				escaped  = "~0~1"
 			)
 
-			assert.Equal(t, escaped, Escape(original))
-			assert.Equal(t, original, Unescape(escaped))
+			assert.EqualT(t, escaped, Escape(original))
+			assert.EqualT(t, original, Unescape(escaped))
 		})
 
 		t.Run("with escaped characters in pointer", func(t *testing.T) {
 			t.Run("escaped ~", func(t *testing.T) {
 				s := Escape("m~n")
-				assert.Equal(t, "m~0n", s)
+				assert.EqualT(t, "m~0n", s)
 			})
 			t.Run("escaped /", func(t *testing.T) {
 				s := Escape("m/n")
-				assert.Equal(t, "m~1n", s)
+				assert.EqualT(t, "m~1n", s)
 			})
 		})
 	})
@@ -92,7 +92,7 @@ func TestFullDocument(t *testing.T) {
 			require.NoErrorf(t, err, "Get(%v) error %v", in, err)
 
 			asMap, ok := result.(map[string]any)
-			require.True(t, ok)
+			require.TrueT(t, ok)
 
 			require.Lenf(t, asMap, testDocumentNBItems(), "Get(%v) = %v, expect full document", in, result)
 		})
@@ -102,7 +102,7 @@ func TestFullDocument(t *testing.T) {
 			require.NoErrorf(t, err, "Get(%v) error %v", in, err)
 
 			asMap, ok := result.(map[string]any)
-			require.True(t, ok)
+			require.TrueT(t, ok)
 			require.Lenf(t, asMap, testDocumentNBItems(), "Get(%v) = %v, expect full document", in, result)
 
 			t.Run("should set value in doc, with nil name provider", func(t *testing.T) {
@@ -113,17 +113,17 @@ func TestFullDocument(t *testing.T) {
 				require.NoError(t, setter.set(asMap, value, nil))
 
 				foos, ok := asMap["foo"]
-				require.True(t, ok)
+				require.TrueT(t, ok)
 
 				asArray, ok := foos.([]any)
-				require.True(t, ok)
+				require.TrueT(t, ok)
 				require.Len(t, asArray, 2)
 
 				foo := asArray[0]
 				bar, ok := foo.(string)
-				require.True(t, ok)
+				require.TrueT(t, ok)
 
-				require.Equal(t, value, bar)
+				require.EqualT(t, value, bar)
 			})
 		})
 	})
@@ -144,14 +144,14 @@ func TestIsEmpty(t *testing.T) {
 		p, err := New("")
 		require.NoError(t, err)
 
-		assert.True(t, p.IsEmpty())
+		assert.TrueT(t, p.IsEmpty())
 	})
 
 	t.Run("with non-empty pointer", func(t *testing.T) {
 		p, err := New("/obj")
 		require.NoError(t, err)
 
-		assert.False(t, p.IsEmpty())
+		assert.FalseT(t, p.IsEmpty())
 	})
 }
 
@@ -287,7 +287,7 @@ func TestGetNode(t *testing.T) {
 
 		t.Run("with aliased map", func(t *testing.T) {
 			asMap, ok := testDocumentJSON(t).(map[string]any)
-			require.True(t, ok)
+			require.TrueT(t, ok)
 			alias := aliasedMap(asMap)
 
 			result, _, err := p.Get(alias)
@@ -380,7 +380,7 @@ func TestStruct(t *testing.T) {
 
 			value, kind, err := pointerA.Get(s)
 			require.NoError(t, err)
-			require.Equal(t, reflect.Int, kind)
+			require.EqualT(t, reflect.Int, kind)
 			require.Equal(t, 1, value)
 
 			_, err = pointerA.Set(&s, 9)
@@ -397,7 +397,7 @@ func TestStruct(t *testing.T) {
 
 			value, kind, err := pointerD.Get(s)
 			require.NoError(t, err)
-			require.Equal(t, reflect.Int, kind)
+			require.EqualT(t, reflect.Int, kind)
 			require.Equal(t, 4, value)
 
 			_, err = pointerD.Set(&s, 6)
@@ -455,7 +455,7 @@ func TestOtherThings(t *testing.T) {
 	t.Run("string representation of a pointer", func(t *testing.T) {
 		p, err := New("/obj/a")
 		require.NoError(t, err)
-		assert.Equal(t, "/obj/a", p.String())
+		assert.EqualT(t, "/obj/a", p.String())
 	})
 
 	t.Run("out of bound array index should error", func(t *testing.T) {
@@ -515,14 +515,14 @@ func extractFooKeyIndex(t *testing.T, index int) any {
 	t.Helper()
 
 	asMap, ok := testDocumentJSON(t).(map[string]any)
-	require.True(t, ok)
+	require.TrueT(t, ok)
 
 	// {"foo": [ ... ] }
 	bbb, ok := asMap["foo"]
-	require.True(t, ok)
+	require.TrueT(t, ok)
 
 	asArray, ok := bbb.([]any)
-	require.True(t, ok)
+	require.TrueT(t, ok)
 
 	return asArray[index]
 }
@@ -709,22 +709,22 @@ func TestSetNode(t *testing.T) {
 		require.NoError(t, err)
 
 		firstNode, ok := jsonDocument.(map[string]any)
-		require.True(t, ok)
+		require.TrueT(t, ok)
 		assert.Len(t, firstNode, 2)
 
 		sliceNode, ok := firstNode["a"].([]any)
-		require.True(t, ok)
+		require.TrueT(t, ok)
 		assert.Len(t, sliceNode, 1)
 
 		changedNode, ok := sliceNode[0].(map[string]any)
-		require.True(t, ok)
+		require.TrueT(t, ok)
 		chNodeVI := changedNode["c"]
 
 		require.IsType(t, 0, chNodeVI)
 		changedNodeValue, ok := chNodeVI.(int)
-		require.True(t, ok)
+		require.TrueT(t, ok)
 
-		require.Equal(t, 999, changedNodeValue)
+		require.EqualT(t, 999, changedNodeValue)
 		assert.Len(t, sliceNode, 1)
 	})
 
@@ -736,15 +736,15 @@ func TestSetNode(t *testing.T) {
 		require.NoError(t, err)
 
 		firstNode, ok := jsonDocument.(map[string]any)
-		require.True(t, ok)
+		require.TrueT(t, ok)
 		assert.Len(t, firstNode, 2)
 
 		sliceNode, ok := firstNode["a"].([]any)
-		require.True(t, ok)
+		require.TrueT(t, ok)
 		assert.Len(t, sliceNode, 1)
 
 		changedNode, ok := sliceNode[0].(map[string]any)
-		require.True(t, ok)
+		require.TrueT(t, ok)
 		assert.Equal(t, 3, changedNode["b"])
 		assert.Equal(t, 8, changedNode["c"])
 	})
@@ -764,8 +764,8 @@ func TestSetNode(t *testing.T) {
 			require.NoError(t, err)
 			assert.Len(t, structDoc.A, 1)
 			changedNode := structDoc.A[0]
-			assert.Equal(t, 4, changedNode.B)
-			assert.Equal(t, 7, changedNode.C)
+			assert.EqualT(t, 4, changedNode.B)
+			assert.EqualT(t, 7, changedNode.C)
 		})
 
 		t.Run("with set node 0 with struct", func(t *testing.T) {
@@ -779,8 +779,8 @@ func TestSetNode(t *testing.T) {
 			require.NoError(t, err)
 			assert.Len(t, structDoc.A, 1)
 			changedNode := structDoc.A[0]
-			assert.Equal(t, 3, changedNode.B)
-			assert.Equal(t, 8, changedNode.C)
+			assert.EqualT(t, 3, changedNode.B)
+			assert.EqualT(t, 8, changedNode.C)
 		})
 
 		t.Run("with set node c with struct", func(t *testing.T) {
@@ -791,7 +791,7 @@ func TestSetNode(t *testing.T) {
 			require.NoError(t, err)
 
 			require.Len(t, structDoc.A, 1)
-			assert.Equal(t, 999, structDoc.A[0].C)
+			assert.EqualT(t, 999, structDoc.A[0].C)
 		})
 	})
 
@@ -807,8 +807,8 @@ func TestSetNode(t *testing.T) {
 			require.NoError(t, err)
 			assert.Len(t, setDoc.Coll.Items, 1)
 			changedNode := setDoc.Coll.Items[0]
-			assert.Equal(t, 4, changedNode.B)
-			assert.Equal(t, 7, changedNode.C)
+			assert.EqualT(t, 4, changedNode.B)
+			assert.EqualT(t, 7, changedNode.C)
 		})
 
 		t.Run("with node 0", func(t *testing.T) {
@@ -819,8 +819,8 @@ func TestSetNode(t *testing.T) {
 			require.NoError(t, err)
 			assert.Len(t, setDoc.Coll.Items, 1)
 			changedNode := setDoc.Coll.Items[0]
-			assert.Equal(t, 3, changedNode.B)
-			assert.Equal(t, 8, changedNode.C)
+			assert.EqualT(t, 3, changedNode.B)
+			assert.EqualT(t, 8, changedNode.C)
 		})
 
 		t.Run("with node c", func(t *testing.T) {
@@ -829,7 +829,7 @@ func TestSetNode(t *testing.T) {
 			_, err = p.Set(setDoc, 999)
 			require.NoError(t, err)
 			require.Len(t, setDoc.Coll.Items, 1)
-			assert.Equal(t, 999, setDoc.Coll.Items[0].C)
+			assert.EqualT(t, 999, setDoc.Coll.Items[0].C)
 		})
 	})
 
@@ -983,7 +983,7 @@ func TestOffset(t *testing.T) {
 
 			t.Log(offset, err)
 			require.NoError(t, err)
-			assert.Equal(t, tt.offset, offset)
+			assert.EqualT(t, tt.offset, offset)
 		})
 	}
 }
