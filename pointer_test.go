@@ -444,6 +444,8 @@ func TestOtherThings(t *testing.T) {
 	t.Run("single string pointer should be valid", func(t *testing.T) {
 		_, err := New("abc")
 		require.Error(t, err)
+		assert.EqualError(t, err, `JSON pointer must be empty or start with a "/"
+JSON pointer error`)
 	})
 
 	t.Run("empty string pointer should be valid", func(t *testing.T) {
