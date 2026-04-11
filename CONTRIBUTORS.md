@@ -4,7 +4,7 @@
 
 | Total Contributors | Total Contributions |
 | --- | --- |
-| 12  | 107  |
+| 13  | 108  |
 
 | Username | All Time Contribution Count | All Commits |
 | --- | --- | --- |
@@ -18,6 +18,7 @@
 | @ianlancetaylor | 1 | <https://github.com/go-openapi/jsonpointer/commits?author=ianlancetaylor> |
 | @mfleader | 1 | <https://github.com/go-openapi/jsonpointer/commits?author=mfleader> |
 | @Neo2308 | 1 | <https://github.com/go-openapi/jsonpointer/commits?author=Neo2308> |
+| @alexandear | 1 | <https://github.com/go-openapi/jsonpointer/commits?author=alexandear> |
 | @olivierlemasle | 1 | <https://github.com/go-openapi/jsonpointer/commits?author=olivierlemasle> |
 | @testwill | 1 | <https://github.com/go-openapi/jsonpointer/commits?author=testwill> |
 
