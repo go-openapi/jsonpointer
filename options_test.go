@@ -111,6 +111,28 @@ func TestSetDefaultNameProvider_nilIgnored(t *testing.T) {
 	assert.Same(t, original, DefaultNameProvider(), "nil must be a no-op")
 }
 
+func TestUseGoNameProvider_resolvesUntaggedFields(t *testing.T) {
+	// Not Parallel: mutates package state.
+	original := DefaultNameProvider()
+	t.Cleanup(func() { SetDefaultNameProvider(original) })
+
+	// optionStruct.Field has no json tag; the default provider can't resolve it,
+	// but the Go-name provider follows encoding/json conventions and can.
+	doc := optionStruct{Field: "hello"}
+
+	p, err := New("/Field")
+	require.NoError(t, err)
+
+	_, _, err = p.Get(doc)
+	require.Error(t, err, "default provider should not resolve untagged fields")
+
+	UseGoNameProvider()
+
+	v, _, err := p.Get(doc)
+	require.NoError(t, err)
+	assert.Equal(t, "hello", v)
+}
+
 func TestDefaultNameProvider_reachesGetForToken(t *testing.T) {
 	// Not Parallel: mutates package state.
 	original := DefaultNameProvider()
