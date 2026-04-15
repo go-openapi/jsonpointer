@@ -110,7 +110,8 @@ func TestFullDocument(t *testing.T) {
 				require.NoErrorf(t, err, "New(%v) error %v", in, err)
 
 				const value = "hey"
-				require.NoError(t, setter.set(asMap, value, nil))
+				_, err = setter.set(asMap, value, nil)
+				require.NoError(t, err)
 
 				foos, ok := asMap["foo"]
 				require.TrueT(t, ok)
@@ -1087,7 +1088,7 @@ func TestInternalEdgeCases(t *testing.T) {
 	t.Run("setSingleImpl should error on any node not a struct, map or slice", func(t *testing.T) {
 		var node int
 
-		err := setSingleImpl(&node, 3, "a", jsonname.DefaultJSONNameProvider)
+		_, err := setSingleImpl(&node, 3, "a", jsonname.DefaultJSONNameProvider)
 		require.Error(t, err)
 		require.ErrorContains(t, err, `invalid token reference "a"`)
 	})
@@ -1103,7 +1104,7 @@ func TestInternalEdgeCases(t *testing.T) {
 		t.Run("setSingleImpl should error on struct field that is not settable", func(t *testing.T) {
 			node := doc // doesn't pass a pointer: unsettable
 
-			err := setSingleImpl(node, "new value", "a", jsonname.DefaultJSONNameProvider)
+			_, err := setSingleImpl(node, "new value", "a", jsonname.DefaultJSONNameProvider)
 			require.Error(t, err)
 			require.ErrorContains(t, err, `can't set struct field`)
 		})

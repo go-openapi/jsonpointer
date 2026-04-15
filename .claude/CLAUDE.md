@@ -40,5 +40,7 @@ See also .claude/plans/ROADMAP.md.
 - Struct fields **must** have a `json` tag to be reachable; untagged fields are ignored
   (differs from `encoding/json` which defaults to the Go field name).
 - Anonymous embedded struct fields are traversed only if tagged.
-- The RFC 6901 `"-"` array suffix (append) is **not** implemented.
+- The RFC 6901 `"-"` array suffix is supported on `Pointer.Set` as an append
+  operation (RFC 6902 convention). On `Pointer.Get` / `Pointer.Offset` it is
+  always an error per RFC 6901 §4.
 

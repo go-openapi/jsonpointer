@@ -129,3 +129,59 @@ func ExamplePointer_Set() {
 	// result: &jsonpointer.exampleDocument{Foo:[]string{"bar", "hey my"}}
 	// doc: jsonpointer.exampleDocument{Foo:[]string{"bar", "hey my"}}
 }
+
+// ExamplePointer_Set_append demonstrates the RFC 6901 "-" token as an
+// append operation on a slice. On nested slices reached through an
+// addressable parent (map entry, pointer to struct, ...), the append is
+// performed in place and the returned document is the same reference.
+func ExamplePointer_Set_append() {
+	doc := map[string]any{"foo": []any{"bar"}}
+
+	pointer, err := New("/foo/-")
+	if err != nil {
+		fmt.Println(err)
+
+		return
+	}
+
+	if _, err := pointer.Set(doc, "baz"); err != nil {
+		fmt.Println(err)
+
+		return
+	}
+
+	fmt.Printf("doc: %v\n", doc["foo"])
+
+	// Output:
+	// doc: [bar baz]
+}
+
+// ExamplePointer_Set_appendTopLevelSlice shows the one case where the
+// returned document is load-bearing: appending to a top-level slice
+// passed by value. The library cannot rebind the slice header in the
+// caller's variable, so callers must use the returned document (or pass
+// *[]T to get in-place rebind).
+func ExamplePointer_Set_appendTopLevelSlice() {
+	doc := []int{1, 2}
+
+	pointer, err := New("/-")
+	if err != nil {
+		fmt.Println(err)
+
+		return
+	}
+
+	out, err := pointer.Set(doc, 3)
+	if err != nil {
+		fmt.Println(err)
+
+		return
+	}
+
+	fmt.Printf("original: %v\n", doc)
+	fmt.Printf("returned: %v\n", out)
+
+	// Output:
+	// original: [1 2]
+	// returned: [1 2 3]
+}
