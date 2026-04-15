@@ -24,6 +24,14 @@ You may join the discord community by clicking the invite link on the discord ba
 
 Or join our Slack channel: [![Slack Channel][slack-logo]![slack-badge]][slack-url]
 
+* **2026-04-15** : added support for trailing "-" for arrays
+  * this brings full support of [RFC6901][RFC6901]
+  * this is supported for types relying on the reflection-based implemented
+  * API semantics remain essentially unaltered. Exception: `Pointer.Set(document any,value any) (document any, err error)` 
+    can only perform a best-effort to mutate the input document in place. In the case of adding elements to an array with a
+    trailing "-", either pass a mutable array (`*[]T`) as the input document, or use the returned updated document instead.
+  * types that implement the `JSONSetable` interface may not implement the mutation implied by the trailing "-"
+
 ## Status
 
 API is stable.
@@ -88,7 +96,7 @@ See <https://github.com/go-openapi/jsonpointer/releases>
 
 <https://tools.ietf.org/html/draft-ietf-appsawg-json-pointer-07>
 
-also known as [RFC6901](https://www.rfc-editor.org/rfc/rfc6901)
+also known as [RFC6901][RFC6901].
 
 ## Licensing
 
@@ -99,12 +107,10 @@ on top of which it has been built.
 
 ## Limitations
 
-The 4.Evaluation part of the previous reference, starting with 'If the currently referenced value is a JSON array,
-the reference token MUST contain either...' is not implemented.
-
-That is because our implementation of the JSON pointer only supports explicit references to array elements:
-the provision in the spec to resolve non-existent members as "the last element in the array",
-using the special trailing character "-" is not implemented.
+* [RFC6901][RFC6901] is now fully supported, including trailing "-" semantics for arrays (for `Set` operations).
+* JSON name detection in go `struct`s
+   - Unlike go standard marshaling, untagged fields do not default to the go field name and are ignored.
+   - anonymous fields are not traversed if untagged
 
 ## Other documentation
 
@@ -156,3 +162,4 @@ Maintainers can cut a new release by either:
 [goversion-url]: https://github.com/go-openapi/jsonpointer/blob/master/go.mod
 [top-badge]: https://img.shields.io/github/languages/top/go-openapi/jsonpointer
 [commits-badge]: https://img.shields.io/github/commits-since/go-openapi/jsonpointer/latest
+[RFC6901]: https://www.rfc-editor.org/rfc/rfc6901
