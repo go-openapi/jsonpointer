@@ -23,6 +23,8 @@ var (
 
 // SetDefaultNameProvider sets the [NameProvider] as a package-level default.
 //
+// By default, the default provider is [jsonname.DefaultJSONNameProvider].
+//
 // It is safe to call concurrently with [Pointer.Get], [Pointer.Set],
 // [GetForToken] and [SetForToken]. The typical usage is to call it once
 // at initialization time.
@@ -37,6 +39,20 @@ func SetDefaultNameProvider(provider NameProvider) {
 	defer defaultOptionsMu.Unlock()
 
 	defaultOptions.provider = provider
+}
+
+// UseGoNameProvider sets the [NameProvider] as a package-level default
+// to the alternative provider [jsonname.GoNameProvider], that covers a few areas
+// not supported by the default name provider.
+//
+// This implementation supports untagged exported fields and embedded types in go struct.
+// It follows strictly the behavior of the JSON standard library regarding field naming conventions.
+//
+// It is safe to call concurrently with [Pointer.Get], [Pointer.Set],
+// [GetForToken] and [SetForToken]. The typical usage is to call it once
+// at initialization time.
+func UseGoNameProvider() {
+	SetDefaultNameProvider(jsonname.NewGoNameProvider())
 }
 
 // DefaultNameProvider returns the current package-level [NameProvider].

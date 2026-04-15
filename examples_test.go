@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
+	"github.com/go-openapi/swag/jsonname"
 )
 
 var ErrExampleStruct = errors.New("example error")
@@ -184,4 +186,50 @@ func ExamplePointer_Set_appendTopLevelSlice() {
 	// Output:
 	// original: [1 2]
 	// returned: [1 2 3]
+}
+
+// ExampleUseGoNameProvider contrasts the two [NameProvider] implementations
+// shipped by [github.com/go-openapi/swag/jsonname]:
+//
+//   - the default provider requires a `json` struct tag to expose a field;
+//   - the Go-name provider follows encoding/json conventions and accepts
+//     exported untagged fields and promoted embedded fields as well.
+func ExampleUseGoNameProvider() {
+	type Embedded struct {
+		Nested string // untagged: promoted only by the Go-name provider
+	}
+	type Doc struct {
+		Embedded // untagged embedded: promoted only by the Go-name provider
+
+		Tagged   string `json:"tagged"`
+		Untagged string // no tag: visible only to the Go-name provider
+	}
+
+	doc := Doc{
+		Embedded: Embedded{Nested: "promoted"},
+		Tagged:   "hit",
+		Untagged: "hidden-by-default",
+	}
+
+	for _, path := range []string{"/tagged", "/Untagged", "/Nested"} {
+		p, err := New(path)
+		if err != nil {
+			fmt.Println(err)
+
+			return
+		}
+
+		// Default provider: only the tagged field resolves.
+		defV, _, defErr := p.Get(doc)
+		// Go-name provider: untagged and promoted fields resolve too.
+		goV, _, goErr := p.Get(doc, WithNameProvider(jsonname.NewGoNameProvider()))
+
+		fmt.Printf("%s -> default=%v (err=%v) | goname=%v (err=%v)\n",
+			path, defV, defErr != nil, goV, goErr != nil)
+	}
+
+	// Output:
+	// /tagged -> default=hit (err=false) | goname=hit (err=false)
+	// /Untagged -> default=<nil> (err=true) | goname=hidden-by-default (err=false)
+	// /Nested -> default=<nil> (err=true) | goname=promoted (err=false)
 }

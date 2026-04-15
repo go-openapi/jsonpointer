@@ -32,6 +32,14 @@ Or join our Slack channel: [![Slack Channel][slack-logo]![slack-badge]][slack-ur
     trailing "-", either pass a mutable array (`*[]T`) as the input document, or use the returned updated document instead.
   * types that implement the `JSONSetable` interface may not implement the mutation implied by the trailing "-"
 
+* **2026-04-15** : added support for optional alternate JSON name providers
+  * for struct support the defaults might not suit all situations: there are known limitations
+    when it comes to handle untagged fields or embedded types.
+  * the default name provider in use is not fully aligned with go JSON stdlib
+  * exposed an option (or global setting) to change the provider that resolves a struct into json keys
+  * the default behavior is not altered
+  * a new alternate name provider is added (imported from `go-openapi/swag/jsonname`), aligned with JSON stdlib behavior
+
 ## Status
 
 API is stable.
@@ -108,9 +116,11 @@ on top of which it has been built.
 ## Limitations
 
 * [RFC6901][RFC6901] is now fully supported, including trailing "-" semantics for arrays (for `Set` operations).
-* JSON name detection in go `struct`s
+* Default behavior: JSON name detection in go `struct`s
    - Unlike go standard marshaling, untagged fields do not default to the go field name and are ignored.
    - anonymous fields are not traversed if untagged
+   - the above limitations may be overcome by calling `UseGoNameProvider()` at initialization time.
+   - alternatively, users may inject the desired custom behavior for naming fields as an option.
 
 ## Other documentation
 
