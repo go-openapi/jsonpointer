@@ -16,7 +16,7 @@ An implementation of JSON Pointer for golang, which supports go `struct`.
 
 ## Announcements
 
-* **2026-04-15** : added support for trailing "-" for arrays
+* **2026-04-15** : added support for trailing "-" for arrays (v0.23.0)
   * this brings full support of [RFC6901][RFC6901]
   * this is supported for types relying on the reflection-based implemented
   * API semantics remain essentially unaltered. Exception: `Pointer.Set(document any,value any) (document any, err error)` 
@@ -34,7 +34,7 @@ An implementation of JSON Pointer for golang, which supports go `struct`.
 
 ## Status
 
-API is stable.
+API is stable and feature-complete.
 
 ## Import this library in your project
 
