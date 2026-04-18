@@ -135,7 +135,7 @@ func (p *Pointer) String() string {
 //     pointer "/foo/bar" against {"foo": {"bar": 21}} returns 9, the index of
 //     the opening quote of "bar".
 //   - Array element: the offset points to the first byte of the value at that
-//     index. For example, pointer "/0/1" against [[1,2], [3,4]] returns 3,
+//     index. For example, pointer "/0/1" against [[1,2], [3,4]] returns 4,
 //     the index of the digit 2.
 //
 // # Errors
@@ -180,7 +180,35 @@ func (p *Pointer) Offset(document string) (int64, error) {
 			return 0, fmt.Errorf("invalid token %#v: %w", tk, ErrPointer)
 		}
 	}
-	return offset, nil
+	return skipJSONSeparator(document, offset), nil
+}
+
+// skipJSONSeparator advances offset past trailing JSON whitespace and at most
+// one value separator (comma) in document, so the result points at the first
+// byte of the next JSON token.
+//
+// The streaming decoder's InputOffset sits right after the most recently
+// consumed token, which between values is the comma (or whitespace) — not
+// the following token. Normalizing here keeps Offset's contract uniform:
+// for both object keys and array elements, and regardless of position within
+// the parent container, the returned offset always points at the first byte
+// of the addressed token.
+func skipJSONSeparator(document string, offset int64) int64 {
+	n := int64(len(document))
+	for offset < n && isJSONWhitespace(document[offset]) {
+		offset++
+	}
+	if offset < n && document[offset] == ',' {
+		offset++
+	}
+	for offset < n && isJSONWhitespace(document[offset]) {
+		offset++
+	}
+	return offset
+}
+
+func isJSONWhitespace(c byte) bool {
+	return c == ' ' || c == '\t' || c == '\n' || c == '\r'
 }
 
 // "Constructor", parses the given string JSON pointer.
@@ -614,24 +642,27 @@ func offsetSingleObject(dec *json.Decoder, decodedToken string) (int64, error) {
 		if err != nil {
 			return 0, err
 		}
-		switch tk := tk.(type) {
-		case json.Delim:
-			switch tk {
-			case '{':
-				if err = drainSingle(dec); err != nil {
-					return 0, err
-				}
-			case '[':
+		key, ok := tk.(string)
+		if !ok {
+			return 0, fmt.Errorf("invalid key token %#v: %w", tk, ErrPointer)
+		}
+		if key == decodedToken {
+			return offset, nil
+		}
+
+		// Consume the associated value. Scalars are fully read by a single
+		// Token() call; composite values must be drained.
+		tk, err = dec.Token()
+		if err != nil {
+			return 0, err
+		}
+		if delim, isDelim := tk.(json.Delim); isDelim {
+			switch delim {
+			case '{', '[':
 				if err = drainSingle(dec); err != nil {
 					return 0, err
 				}
 			}
-		case string:
-			if tk == decodedToken {
-				return offset, nil
-			}
-		default:
-			return 0, fmt.Errorf("invalid token %#v: %w", tk, ErrPointer)
 		}
 	}
 
