@@ -951,7 +951,7 @@ func TestOffset(t *testing.T) {
 			name:   "array index",
 			ptr:    "/0/1",
 			input:  `[[1,2], [3,4]]`,
-			offset: 3,
+			offset: 4,
 		},
 		{
 			name:   "mix array index and object key",
@@ -969,6 +969,66 @@ func TestOffset(t *testing.T) {
 			name:     "nonexist array index",
 			ptr:      "/0/2",
 			input:    `[[1,2], [3,4]]`,
+			hasError: true,
+		},
+		{
+			name:   "array element after nested object",
+			ptr:    "/1",
+			input:  `[{"x":1}, 42]`,
+			offset: 10,
+		},
+		{
+			name:   "array element after nested array",
+			ptr:    "/1",
+			input:  `[[1,2], 42]`,
+			offset: 8,
+		},
+		{
+			name:   "array element after mixed composites",
+			ptr:    "/2",
+			input:  `[{"x":1}, [3,4], 42]`,
+			offset: 17,
+		},
+		{
+			name:   "object key after scalar sibling",
+			ptr:    "/b",
+			input:  `{"a": 1, "b": 2}`,
+			offset: 9,
+		},
+		{
+			name:   "object key after composite sibling",
+			ptr:    "/bar",
+			input:  `{"foo": {}, "bar": 1}`,
+			offset: 12,
+		},
+		{
+			name:   "whitespace between value and comma",
+			ptr:    "/b",
+			input:  `{"a":1 ,"b":2}`,
+			offset: 8,
+		},
+		{
+			name:     "array index is not a number",
+			ptr:      "/foo",
+			input:    `[1,2,3]`,
+			hasError: true,
+		},
+		{
+			name:     "pointer traverses through a scalar",
+			ptr:      "/foo/bar",
+			input:    `{"foo": 42}`,
+			hasError: true,
+		},
+		{
+			name:     "malformed JSON document",
+			ptr:      "/0",
+			input:    `not json`,
+			hasError: true,
+		},
+		{
+			name:     "missing object key with nested composite siblings",
+			ptr:      "/c",
+			input:    `{"a":{}, "b":[]}`,
 			hasError: true,
 		},
 	}
@@ -1109,4 +1169,85 @@ func TestInternalEdgeCases(t *testing.T) {
 			require.ErrorContains(t, err, `can't set struct field`)
 		})
 	})
+
+	t.Run("assignReflectValue is a no-op when src is an untyped nil", func(t *testing.T) {
+		target := "unchanged"
+		dst := reflect.ValueOf(&target).Elem()
+
+		assignReflectValue(dst, nil)
+
+		require.Equal(t, "unchanged", target)
+	})
+}
+
+func TestSetIntermediateErrors(t *testing.T) {
+	t.Parallel()
+
+	type leaf struct {
+		V string `json:"v"`
+	}
+	type doc struct {
+		M map[string]leaf `json:"m"`
+		L []leaf          `json:"l"`
+		S leaf            `json:"s"`
+		N int             `json:"n"`
+		P pointableImpl   `json:"p"`
+	}
+
+	newDoc := func() *doc {
+		return &doc{
+			M: map[string]leaf{"present": {V: "x"}},
+			L: []leaf{{V: "a"}, {V: "b"}},
+			P: pointableImpl{a: "hello"},
+		}
+	}
+
+	cases := []struct {
+		name    string
+		pointer string
+		substr  string
+	}{
+		{
+			name:    "map missing key mid-path",
+			pointer: "/m/missing/v",
+			substr:  `no key "missing"`,
+		},
+		{
+			name:    "slice non-numeric index mid-path",
+			pointer: "/l/abc/v",
+			substr:  `parsing "abc"`,
+		},
+		{
+			name:    "slice out-of-bounds mid-path",
+			pointer: "/l/99/v",
+			substr:  `out of bounds`,
+		},
+		{
+			name:    "struct unknown field mid-path",
+			pointer: "/s/bogus/v",
+			substr:  `no field "bogus"`,
+		},
+		{
+			name:    "scalar traversal mid-path",
+			pointer: "/n/anything/v",
+			substr:  `invalid token reference "anything"`,
+		},
+		{
+			name:    "JSONPointable returns error mid-path",
+			pointer: "/p/unknown/v",
+			substr:  `no field "unknown"`,
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			ptr, err := New(tt.pointer)
+			require.NoError(t, err)
+
+			_, err = ptr.Set(newDoc(), "value")
+			require.Error(t, err)
+			require.ErrorIs(t, err, ErrPointer)
+			require.ErrorContains(t, err, tt.substr)
+		})
+	}
 }
