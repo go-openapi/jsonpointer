@@ -25,7 +25,7 @@ const (
 // It works with any go type interpreted as a JSON document, which means:
 //
 //   - if a type implements [JSONPointable], its [JSONPointable.JSONLookup] method is used to resolve [Pointer.Get]
-//   - if a type implements [JSONSetable], its [JSONPointable.JSONSet] method is used to resolve [Pointer.Set]
+//   - if a type implements [JSONSetable], its [JSONSetable.JSONSet] method is used to resolve [Pointer.Set]
 //   - a go map[K]V is interpreted as an object, with type K assignable to a string
 //   - a go slice []T is interpreted as an array
 //   - a go struct is interpreted as an object, with exported fields interpreted as keys
@@ -112,6 +112,46 @@ func (p *Pointer) String() string {
 	return pointerSeparator + strings.Join(p.referenceTokens, pointerSeparator)
 }
 
+// Offset returns the byte offset, in the raw JSON text of document, of the
+// location referenced by this pointer's terminal token.
+//
+// Unlike [Pointer.Get] and [Pointer.Set], which operate on a decoded Go value,
+// Offset operates directly on the textual JSON source. It drives an
+// [encoding/json.Decoder] over the string and stops at the terminal token,
+// returning the position at which the decoder was about to read that token.
+//
+// It is primarily intended for tooling that needs to map a pointer back to a
+// region of the original source: reporting line/column for validation or
+// parse diagnostics, extracting a sub-document by slicing the raw bytes, or
+// highlighting the referenced span in an editor.
+//
+// # Offset semantics
+//
+// The meaning of the returned offset depends on whether the terminal token
+// addresses an object property or an array element:
+//
+//   - Object property: the offset points to the first byte of the key (its
+//     opening quote character), not to the associated value. For example,
+//     pointer "/foo/bar" against {"foo": {"bar": 21}} returns 9, the index of
+//     the opening quote of "bar".
+//   - Array element: the offset points to the first byte of the value at that
+//     index. For example, pointer "/0/1" against [[1,2], [3,4]] returns 3,
+//     the index of the digit 2.
+//
+// # Errors
+//
+// Offset returns an error in any of these cases:
+//
+//   - document is not syntactically valid JSON;
+//   - the structure of document does not match the pointer (e.g. traversing
+//     into a scalar, or a token that is neither a valid key nor a valid
+//     numeric index);
+//   - a referenced key or index does not exist in document;
+//   - the pointer's terminal token is the RFC 6901 "-" array token, which
+//     designates a nonexistent element and therefore has no offset in the
+//     source. The returned error wraps [ErrDashToken].
+//
+// All errors wrap [ErrPointer].
 func (p *Pointer) Offset(document string) (int64, error) {
 	dec := json.NewDecoder(strings.NewReader(document))
 	var offset int64
