@@ -12,9 +12,10 @@ import (
 	"github.com/go-openapi/testify/v2/require"
 )
 
-// stubNameProvider is a NameProvider that maps JSON names to Go field names
-// via a fixed dictionary. It lets tests observe which provider was used by
-// the resolver without relying on the default reflection-based behavior.
+// stubNameProvider is a NameProvider that maps JSON names to Go field names via a fixed dictionary.
+//
+// It lets tests observe which provider was used by the resolver without relying on the default
+// reflection-based behavior.
 type stubNameProvider struct {
 	mu       sync.Mutex
 	mapping  map[string]string
@@ -46,8 +47,8 @@ func (s *stubNameProvider) record(name string, forType bool) {
 }
 
 type optionStruct struct {
-	// intentional: the JSON name "renamed" is deliberately not a valid
-	// struct tag so that only a custom provider can resolve it.
+	// intentional: the JSON name "renamed" is deliberately not a valid struct tag so that only a
+	// custom provider can resolve it.
 	Field string
 }
 
@@ -116,8 +117,8 @@ func TestUseGoNameProvider_resolvesUntaggedFields(t *testing.T) {
 	original := DefaultNameProvider()
 	t.Cleanup(func() { SetDefaultNameProvider(original) })
 
-	// optionStruct.Field has no json tag; the default provider can't resolve it,
-	// but the Go-name provider follows encoding/json conventions and can.
+	// optionStruct.Field has no json tag; the default provider can't resolve it, but the Go-name
+	// provider follows encoding/json conventions and can.
 	doc := optionStruct{Field: "hello"}
 
 	p, err := New("/Field")

@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/go-openapi/swag/jsonname"
+	"github.com/go-openapi/jsonpointer/jsonname"
 	"github.com/go-openapi/testify/v2/assert"
 	"github.com/go-openapi/testify/v2/require"
 )
@@ -837,8 +837,8 @@ func TestSetNode(t *testing.T) {
 	})
 
 	t.Run("with nil traversal panic", func(t *testing.T) {
-		// This test exposes the panic that occurs when trying to set a value
-		// through a path that contains nil intermediate values
+		// This test exposes the panic that occurs when trying to set a value through a path that contains
+		// nil intermediate values.
 		data := map[string]any{
 			"level1": map[string]any{
 				"level2": map[string]any{
@@ -853,8 +853,7 @@ func TestSetNode(t *testing.T) {
 		// This should return an error, not panic
 		_, err = ptr.Set(data, "test-value")
 
-		// The library should handle this gracefully and return an error
-		// instead of panicking
+		// The library should handle this gracefully and return an error instead of panicking.
 		require.Error(t, err, "Setting value through nil intermediate path should return an error, not panic")
 	})
 
@@ -896,19 +895,19 @@ func TestSetNode(t *testing.T) {
 	})
 
 	t.Run("with path creation through nil intermediate", func(t *testing.T) {
-		// Test case that simulates path creation functions encountering nil
-		// This happens when tools try to create missing paths but encounter nil intermediate values
+		// Test case that simulates path creation functions encountering nil This happens when tools try
+		// to create missing paths but encounter nil intermediate values.
 		data := map[string]any{
 			"spec": map[string]any{
 				"template": nil, // This blocks path creation attempts
 			},
 		}
 
-		// Attempting to create a path like /spec/template/metadata/labels should fail gracefully
+		// Attempting to create a path like /spec/template/metadata/labels should fail gracefully.
 		ptr, err := New("/spec/template/metadata")
 		require.NoError(t, err)
 
-		// Should return error when trying to set on nil intermediate during path creation
+		// Should return error when trying to set on nil intermediate during path creation.
 		_, err = ptr.Set(data, map[string]any{"labels": map[string]any{}})
 		require.Error(t, err, "Setting on nil intermediate during path creation should return error")
 	})

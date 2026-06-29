@@ -8,7 +8,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/go-openapi/swag/jsonname"
+	"github.com/go-openapi/jsonpointer/jsonname"
 )
 
 var ErrExampleStruct = errors.New("example error")
@@ -60,7 +60,7 @@ func ExampleNew() {
 	// key contains "/"
 	fmt.Printf("pointer to key %q: %q\n", Unescape("foo~1"), escaped1.String())
 
-	// output:
+	// Output:
 	// empty pointer: ""
 	// pointer to object key: "/foo"
 	// pointer to array element: "/foo/1"
@@ -132,10 +132,10 @@ func ExamplePointer_Set() {
 	// doc: jsonpointer.exampleDocument{Foo:[]string{"bar", "hey my"}}
 }
 
-// ExamplePointer_Set_append demonstrates the RFC 6901 "-" token as an
-// append operation on a slice. On nested slices reached through an
-// addressable parent (map entry, pointer to struct, ...), the append is
-// performed in place and the returned document is the same reference.
+// ExamplePointer_Set_append demonstrates the RFC 6901 "-" token as an append operation on a slice.
+//
+// On nested slices reached through an addressable parent (map entry, pointer to struct, ...), the
+// append is performed in place and the returned document is the same reference.
 func ExamplePointer_Set_append() {
 	doc := map[string]any{"foo": []any{"bar"}}
 
@@ -154,15 +154,14 @@ func ExamplePointer_Set_append() {
 
 	fmt.Printf("doc: %v\n", doc["foo"])
 
-	// Output:
-	// doc: [bar baz]
+	// Output: doc: [bar baz]
 }
 
-// ExamplePointer_Set_appendTopLevelSlice shows the one case where the
-// returned document is load-bearing: appending to a top-level slice
-// passed by value. The library cannot rebind the slice header in the
-// caller's variable, so callers must use the returned document (or pass
-// *[]T to get in-place rebind).
+// ExamplePointer_Set_appendTopLevelSlice shows the one case where the returned document is
+// load-bearing: appending to a top-level slice passed by value.
+//
+// The library cannot rebind the slice header in the caller's variable, so callers must use the
+// returned document (or pass *[]T to get in-place rebind).
 func ExamplePointer_Set_appendTopLevelSlice() {
 	doc := []int{1, 2}
 
@@ -188,8 +187,8 @@ func ExamplePointer_Set_appendTopLevelSlice() {
 	// returned: [1 2 3]
 }
 
-// ExampleUseGoNameProvider contrasts the two [NameProvider] implementations
-// shipped by [github.com/go-openapi/swag/jsonname]:
+// ExampleUseGoNameProvider contrasts the two [NameProvider] implementations shipped by
+// [github.com/go-openapi/jsonpointer/jsonname]:
 //
 //   - the default provider requires a `json` struct tag to expose a field;
 //   - the Go-name provider follows encoding/json conventions and accepts
