@@ -45,15 +45,15 @@ type testAltStruct struct {
 	Name       string `json:"name"`
 	NotTheSame int64  `json:"plain"`
 	Ignored    string `json:"-"`
-	DashField  string `json:"-,"` //nolint:staticcheck  // deliberate: exercise stdlib "-," quirk
-	Untagged   string `json:""`
-	Optional   string `json:",omitempty"`
+	DashField  string `json:"-,"`         //nolint:staticcheck  // deliberate: exercise stdlib "-," quirk
+	Untagged   string `json:""`           //nolint:tagliatelle // that's precisely the point of this test to check the uppercase field
+	Optional   string `json:",omitempty"` //nolint:tagliatelle // that's precisely the point of this test to check the uppercase field
 	NoTag      string
 	unexported string //nolint:unused  // exercised to confirm it is filtered out
 }
 
-// testAltShadow verifies the depth-based conflict resolution: the outer field
-// must win over one promoted from an embedded type.
+// testAltShadow verifies the depth-based conflict resolution: the outer field must win over one
+// promoted from an embedded type.
 type testAltShadow struct {
 	testAltEmbedded
 
@@ -63,7 +63,7 @@ type testAltShadow struct {
 func TestGoNameProvider(t *testing.T) {
 	provider := NewGoNameProvider()
 	obj := testAltStruct{}
-	tpe := reflect.TypeOf(obj)
+	tpe := reflect.TypeFor[testAltStruct]()
 	ptr := &obj
 
 	t.Run("GetGoName resolves tagged fields", func(t *testing.T) {
@@ -165,8 +165,8 @@ func TestGoNameProvider(t *testing.T) {
 	})
 }
 
-// TestGoNameProvider_ShadowingMatchesStdlib pins our field selection to the
-// behavior of encoding/json for shadowed promoted fields.
+// TestGoNameProvider_ShadowingMatchesStdlib pins our field selection to the behavior of
+// encoding/json for shadowed promoted fields.
 func TestGoNameProvider_ShadowingMatchesStdlib(t *testing.T) {
 	provider := NewGoNameProvider()
 	payload := `{"nested":"outer"}`
@@ -185,8 +185,8 @@ func TestGoNameProvider_ShadowingMatchesStdlib(t *testing.T) {
 	assert.Len(t, names, 1)
 }
 
-// TestGoNameProvider_ImplementsInterface is a compile-time-ish guard that both
-// providers agree on the core lookup shape expected by consumers.
+// TestGoNameProvider_ImplementsInterface is a compile-time-ish guard that both providers agree on
+// the core lookup shape expected by consumers.
 func TestGoNameProvider_ImplementsInterface(t *testing.T) {
 	var p providerIface = NewGoNameProvider()
 	_, ok := p.GetGoName(testAltStruct{}, "name")
@@ -224,8 +224,8 @@ type testAltUnexportedEmbed struct {
 	inner testAltInner //nolint:unused  // regular unexported field, must be ignored
 }
 
-// TestGoNameProvider_EmbeddedPromotion validates how the provider resolves
-// fields coming from an exported embedded type, mirroring encoding/json.
+// TestGoNameProvider_EmbeddedPromotion validates how the provider resolves fields coming from an
+// exported embedded type, mirroring encoding/json.
 func TestGoNameProvider_EmbeddedPromotion(t *testing.T) {
 	t.Run("untagged embedded struct promotes its fields", func(t *testing.T) {
 		provider := NewGoNameProvider()

@@ -19,7 +19,7 @@ type testNameStruct struct {
 func TestNameProvider(t *testing.T) {
 	provider := NewNameProvider()
 
-	var obj = testNameStruct{}
+	obj := testNameStruct{}
 
 	nm, ok := provider.GetGoName(obj, "name")
 	assert.TrueT(t, ok)
@@ -37,7 +37,7 @@ func TestNameProvider(t *testing.T) {
 	assert.FalseT(t, ok)
 	assert.Empty(t, nm)
 
-	tpe := reflect.TypeOf(obj)
+	tpe := reflect.TypeFor[testNameStruct]()
 	nm, ok = provider.GetGoNameForType(tpe, "name")
 	assert.TrueT(t, ok)
 	assert.EqualT(t, "Name", nm)

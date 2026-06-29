@@ -142,7 +142,7 @@ func Example_iface() {
 
 	fmt.Printf("updated doc: %v", doc)
 
-	// output:
+	// Output:
 	// propA (string): initial value for a
 	// propB (string): initial value for b
 	// propC: key "extra" not found: example error

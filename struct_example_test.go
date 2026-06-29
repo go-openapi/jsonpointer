@@ -106,7 +106,7 @@ func Example_struct() {
 		fmt.Printf("untagged: %v\n", err)
 	}
 
-	// output:
+	// Output:
 	// a: a
 	// b: promoted
 	// c: c

@@ -11,9 +11,9 @@ import (
 	"github.com/go-openapi/testify/v2/require"
 )
 
-// RFC 6901 §4: the "-" token refers to the (nonexistent) element after the
-// last array element. It is always an error on Get/Offset, valid only as
-// the terminal token of a Set against a slice (append, per RFC 6902).
+// RFC 6901 §4: the "-" token refers to the (nonexistent) element after the last array element.
+// It is always an error on Get/Offset, valid only as the terminal token of a Set against a slice
+// (append, per RFC 6902).
 
 func TestDashToken_GetAlwaysErrors(t *testing.T) {
 	t.Parallel()
@@ -56,7 +56,8 @@ func TestDashToken_GetAlwaysErrors(t *testing.T) {
 	})
 
 	t.Run("dash on map key is a regular lookup, not an error", func(t *testing.T) {
-		// "-" is only special for arrays. A literal "-" key in a map is fine.
+		// "-" is only special for arrays.
+		// A literal "-" key in a map is fine.
 		doc := map[string]any{"-": 42}
 		p, err := New("/-")
 		require.NoError(t, err)
@@ -208,8 +209,8 @@ func (d *dashSetter) JSONSet(key string, value any) error {
 func TestDashToken_JSONSetableReceivesRawDash(t *testing.T) {
 	t.Parallel()
 
-	// When the terminal parent implements JSONSetable, the dash token is
-	// passed through verbatim. Semantics are the user type's responsibility.
+	// When the terminal parent implements JSONSetable, the dash token is passed through verbatim.
+	// Semantics are the user type's responsibility.
 	ds := &dashSetter{}
 	p, err := New("/-")
 	require.NoError(t, err)
