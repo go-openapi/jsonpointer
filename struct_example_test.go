@@ -79,7 +79,7 @@ func Example_struct() {
 	}
 
 	{
-		// exlicitly ignored by JSON tag.
+		// explicitly ignored by JSON tag.
 		pointerI, _ := jsonpointer.New("/ignored")
 		_, _, err := pointerI.Get(doc)
 		fmt.Printf("ignored: %v\n", err)
