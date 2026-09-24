@@ -1179,6 +1179,78 @@ func TestInternalEdgeCases(t *testing.T) {
 	})
 }
 
+func TestSetSingleImplHandlesNilData(t *testing.T) {
+	t.Parallel()
+
+	t.Run("set struct field to nil when field type is nilable", func(t *testing.T) {
+		type doc struct {
+			Value any `json:"value"`
+		}
+
+		p, err := New("/value")
+		require.NoError(t, err)
+
+		input := &doc{Value: "x"}
+		_, err = p.Set(input, nil)
+		require.NoError(t, err)
+		require.Nil(t, input.Value)
+	})
+
+	t.Run("set struct field to nil when field type is not nilable returns error", func(t *testing.T) {
+		type doc struct {
+			Value string `json:"value"`
+		}
+
+		p, err := New("/value")
+		require.NoError(t, err)
+
+		input := &doc{Value: "x"}
+		_, err = p.Set(input, nil)
+		require.Error(t, err)
+		require.ErrorContains(t, err, `can't set null value to field Value with type string`)
+	})
+
+	t.Run("append nil to []any", func(t *testing.T) {
+		p, err := New("/-")
+		require.NoError(t, err)
+
+		doc := []any{"a"}
+		_, err = p.Set(&doc, nil)
+		require.NoError(t, err)
+		require.Equal(t, []any{"a", nil}, doc)
+	})
+
+	t.Run("append nil to []int returns error", func(t *testing.T) {
+		p, err := New("/-")
+		require.NoError(t, err)
+
+		doc := []int{1}
+		_, err = p.Set(&doc, nil)
+		require.Error(t, err)
+		require.ErrorContains(t, err, `can't append null value to slice of int`)
+	})
+
+	t.Run("set nil into []any element", func(t *testing.T) {
+		p, err := New("/0")
+		require.NoError(t, err)
+
+		doc := []any{"a", "b"}
+		_, err = p.Set(&doc, nil)
+		require.NoError(t, err)
+		require.Equal(t, []any{nil, "b"}, doc)
+	})
+
+	t.Run("set nil into []int element returns error", func(t *testing.T) {
+		p, err := New("/0")
+		require.NoError(t, err)
+
+		doc := []int{1, 2}
+		_, err = p.Set(&doc, nil)
+		require.Error(t, err)
+		require.ErrorContains(t, err, `can't set null value to slice element 0 with type int`)
+	})
+}
+
 func TestSetIntermediateErrors(t *testing.T) {
 	t.Parallel()
 
@@ -1249,4 +1321,183 @@ func TestSetIntermediateErrors(t *testing.T) {
 			require.ErrorContains(t, err, tt.substr)
 		})
 	}
+}
+
+// EmbeddedPointerBase is embedded by value and by pointer in the test documents below. It must be
+// exported: buildnameIndex skips unexported embedded fields before it ever looks at their type.
+type EmbeddedPointerBase struct {
+	ID string `json:"id"`
+}
+
+type withEmbeddedPointer struct {
+	*EmbeddedPointerBase
+
+	Name string `json:"name"`
+}
+
+func TestPointerEmbeddedPointerStruct(t *testing.T) {
+	t.Parallel()
+
+	t.Run("should resolve a promoted field through a non-nil embedded pointer", func(t *testing.T) {
+		p, err := New("/id")
+		require.NoError(t, err)
+
+		value, _, err := p.Get(withEmbeddedPointer{EmbeddedPointerBase: &EmbeddedPointerBase{ID: "abc"}, Name: ""})
+		require.NoError(t, err)
+		assert.EqualT(t, "abc", value)
+	})
+
+	t.Run("should resolve a sibling field when the embedded pointer is nil", func(t *testing.T) {
+		p, err := New("/name")
+		require.NoError(t, err)
+
+		value, _, err := p.Get(withEmbeddedPointer{EmbeddedPointerBase: nil, Name: "x"})
+		require.NoError(t, err)
+		assert.EqualT(t, "x", value)
+	})
+
+	t.Run("should set a promoted field through a non-nil embedded pointer", func(t *testing.T) {
+		p, err := New("/id")
+		require.NoError(t, err)
+
+		doc := &withEmbeddedPointer{EmbeddedPointerBase: &EmbeddedPointerBase{ID: ""}, Name: ""}
+		_, err = p.Set(doc, "xyz")
+		require.NoError(t, err)
+		assert.EqualT(t, "xyz", doc.ID)
+	})
+
+	t.Run("should error, not panic, on a field promoted through a nil embedded pointer", func(t *testing.T) {
+		p, err := New("/id")
+		require.NoError(t, err)
+
+		t.Run("on Get", func(t *testing.T) {
+			_, _, err := p.Get(withEmbeddedPointer{EmbeddedPointerBase: nil, Name: "x"})
+			require.Error(t, err)
+			require.ErrorIs(t, err, ErrPointer)
+			require.ErrorContains(t, err, `cannot reach field "ID"`)
+		})
+
+		t.Run("on Set", func(t *testing.T) {
+			_, err := p.Set(&withEmbeddedPointer{EmbeddedPointerBase: nil, Name: ""}, "xyz")
+			require.Error(t, err)
+			require.ErrorIs(t, err, ErrPointer)
+			require.ErrorContains(t, err, `cannot reach field "ID"`)
+		})
+
+		t.Run("with the GoNameProvider", func(t *testing.T) {
+			_, _, err := p.Get(withEmbeddedPointer{EmbeddedPointerBase: nil, Name: ""}, WithNameProvider(jsonname.NewGoNameProvider()))
+			require.Error(t, err)
+			require.ErrorIs(t, err, ErrPointer)
+			require.ErrorContains(t, err, `cannot reach field "ID"`)
+		})
+	})
+}
+
+type mapStringKey string
+
+func TestPointerMapKeyTypes(t *testing.T) {
+	t.Parallel()
+
+	t.Run("should address a map keyed by a named string type", func(t *testing.T) {
+		p, err := New("/a")
+		require.NoError(t, err)
+
+		doc := map[mapStringKey]int{"a": 1}
+
+		value, _, err := p.Get(doc)
+		require.NoError(t, err)
+		assert.EqualT(t, 1, value)
+
+		_, err = p.Set(doc, 2)
+		require.NoError(t, err)
+		assert.EqualT(t, 2, doc["a"])
+	})
+
+	t.Run("should error, not panic, on a map that a string cannot key", func(t *testing.T) {
+		p, err := New("/1")
+		require.NoError(t, err)
+
+		t.Run("on Get", func(t *testing.T) {
+			_, _, err := p.Get(map[int]string{1: "a"})
+			require.Error(t, err)
+			require.ErrorIs(t, err, ErrPointer)
+			require.ErrorContains(t, err, `can't use token "1" as a key of map type map[int]string`)
+		})
+
+		t.Run("on Set", func(t *testing.T) {
+			_, err := p.Set(map[int]string{1: "a"}, "b")
+			require.Error(t, err)
+			require.ErrorIs(t, err, ErrPointer)
+			require.ErrorContains(t, err, `can't use token "1" as a key of map type map[int]string`)
+		})
+	})
+}
+
+func TestSetMapValues(t *testing.T) {
+	t.Parallel()
+
+	t.Run("should set a map member to nil, keeping the member", func(t *testing.T) {
+		p, err := New("/a")
+		require.NoError(t, err)
+
+		doc := map[string]any{"a": 1, "b": 2}
+		_, err = p.Set(doc, nil)
+		require.NoError(t, err)
+
+		value, ok := doc["a"]
+		require.TrueT(t, ok, "setting a member to null must not delete it")
+		require.Nil(t, value)
+		assert.EqualT(t, 2, doc["b"])
+	})
+
+	t.Run("should set a nested map member to nil, keeping the member", func(t *testing.T) {
+		type doc struct {
+			M map[string]any `json:"m"`
+		}
+
+		p, err := New("/m/k")
+		require.NoError(t, err)
+
+		input := &doc{M: map[string]any{"k": "v"}}
+		_, err = p.Set(input, nil)
+		require.NoError(t, err)
+
+		value, ok := input.M["k"]
+		require.TrueT(t, ok)
+		require.Nil(t, value)
+	})
+
+	t.Run("should error when setting a map member to nil with a value type that is not nilable", func(t *testing.T) {
+		p, err := New("/a")
+		require.NoError(t, err)
+
+		doc := map[string]int{"a": 1}
+		_, err = p.Set(doc, nil)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrPointer)
+		require.ErrorContains(t, err, `can't set null value to map value "a" with type int`)
+		assert.EqualT(t, 1, doc["a"], "a rejected set must not alter the map")
+	})
+
+	t.Run("should error, not panic, when the value is not assignable to the map value type", func(t *testing.T) {
+		p, err := New("/a")
+		require.NoError(t, err)
+
+		doc := map[string]int{"a": 1}
+		_, err = p.Set(doc, "not an int")
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrPointer)
+		require.ErrorContains(t, err, `can't set value with type string to map value "a" with type int`)
+		assert.EqualT(t, 1, doc["a"])
+	})
+
+	t.Run("should set a map member through SetForToken", func(t *testing.T) {
+		doc := map[string]any{"a": 1}
+		_, err := SetForToken(doc, "a", nil)
+		require.NoError(t, err)
+
+		value, ok := doc["a"]
+		require.TrueT(t, ok)
+		require.Nil(t, value)
+	})
 }

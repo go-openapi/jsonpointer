@@ -5,7 +5,8 @@ paths:
 
 # Contribution rules (go-openapi)
 
-Read `.github/CONTRIBUTING.md` before opening a pull request.
+Read the go-openapi contribution guide before opening a pull request, plus the sibling rules in
+this directory: go conventions, linting, testing, github workflows and technical writing.
 
 ## Commit hygiene
 
@@ -41,12 +42,15 @@ go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
 - Aim for at least 80% coverage of your patch.
 - Run the full test suite before submitting:
 
-For mono-repos:
-```sh
-go test work ./...
-```
-
-For single module repos:
 ```sh
 go test ./...
+```
+
+In a mono-repo, run it once per module (a Go workspace does not give `go test` a whole-workspace
+target).
+
+Run the race detector too, since CI does:
+
+```sh
+go test -race ./...
 ```

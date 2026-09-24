@@ -4,6 +4,7 @@
 package jsonname
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -123,4 +124,101 @@ func TestNameProvider(t *testing.T) {
 	assert.Len(t, nms, 2)
 
 	assert.Len(t, provider.index, 1)
+}
+
+type EmbeddedBase struct {
+	ID string `json:"id"`
+}
+
+// WithEmbeddedPointer embeds a pointer to a struct, the shape that used to panic in
+// buildnameIndex with "reflect: NumField of non-struct type *jsonname.EmbeddedBase".
+type WithEmbeddedPointer struct {
+	*EmbeddedBase
+
+	Name string `json:"name"`
+}
+
+type NamedSlice []string
+
+// WithEmbeddedNonStruct embeds a named slice type, which carries no field to promote.
+type WithEmbeddedNonStruct struct {
+	NamedSlice
+
+	Name string `json:"name"`
+}
+
+type WithEmbeddedTaggedNonStruct struct {
+	NamedSlice `json:"list"`
+
+	Name string `json:"name"`
+}
+
+func TestNameProviderAnonymousFields(t *testing.T) {
+	t.Run("should promote fields of an embedded pointer to struct", func(t *testing.T) {
+		provider := NewNameProvider()
+
+		nm, ok := provider.GetGoName(WithEmbeddedPointer{EmbeddedBase: nil, Name: ""}, "id")
+		assert.TrueT(t, ok)
+		assert.EqualT(t, "ID", nm)
+
+		nm, ok = provider.GetGoName(WithEmbeddedPointer{EmbeddedBase: nil, Name: ""}, "name")
+		assert.TrueT(t, ok)
+		assert.EqualT(t, "Name", nm)
+	})
+
+	t.Run("should index a struct embedding a non-struct type", func(t *testing.T) {
+		provider := NewNameProvider()
+
+		nm, ok := provider.GetGoName(WithEmbeddedNonStruct{NamedSlice: nil, Name: ""}, "name")
+		assert.TrueT(t, ok)
+		assert.EqualT(t, "Name", nm)
+	})
+
+	t.Run("should index a struct embedding a tagged non-struct type", func(t *testing.T) {
+		provider := NewNameProvider()
+
+		nm, ok := provider.GetGoName(WithEmbeddedTaggedNonStruct{NamedSlice: nil, Name: ""}, "name")
+		assert.TrueT(t, ok)
+		assert.EqualT(t, "Name", nm)
+	})
+}
+
+func TestNameProviderNonStructSubjects(t *testing.T) {
+	// a subject that is not a struct carries no json name: it indexes to nothing rather than
+	// panicking in reflect.Type.NumField or reflect.Value.Type.
+	for _, subject := range []any{
+		map[string]any{"a": 1},
+		42,
+		"a string",
+		[]int{1, 2},
+		nil,
+	} {
+		t.Run(fmt.Sprintf("subject %T", subject), func(t *testing.T) {
+			t.Run("NameProvider", func(t *testing.T) {
+				provider := NewNameProvider()
+				assert.Empty(t, provider.GetJSONNames(subject))
+
+				nm, ok := provider.GetGoName(subject, "a")
+				assert.FalseT(t, ok)
+				assert.Empty(t, nm)
+
+				nm, ok = provider.GetJSONName(subject, "A")
+				assert.FalseT(t, ok)
+				assert.Empty(t, nm)
+			})
+
+			t.Run("GoNameProvider", func(t *testing.T) {
+				provider := NewGoNameProvider()
+				assert.Empty(t, provider.GetJSONNames(subject))
+
+				nm, ok := provider.GetGoName(subject, "a")
+				assert.FalseT(t, ok)
+				assert.Empty(t, nm)
+
+				nm, ok = provider.GetJSONName(subject, "A")
+				assert.FalseT(t, ok)
+				assert.Empty(t, nm)
+			})
+		})
+	}
 }
