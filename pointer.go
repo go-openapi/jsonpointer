@@ -456,6 +456,15 @@ func isNil(input any) bool {
 	}
 }
 
+func isNilableKind(kind reflect.Kind) bool {
+	switch kind {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice, reflect.UnsafePointer:
+		return true
+	default:
+		return false
+	}
+}
+
 func typeFromValue(v reflect.Value) any {
 	if v.CanAddr() && v.Kind() != reflect.Interface && v.Kind() != reflect.Map && v.Kind() != reflect.Slice && v.Kind() != reflect.Pointer {
 		return v.Addr().Interface()
@@ -565,9 +574,16 @@ func setSingleImpl(node, data any, decodedToken string, nameProvider NameProvide
 			return node, fmt.Errorf("can't set struct field %s to %v: %w", nm, data, ErrPointer)
 		}
 
-		value := reflect.ValueOf(data)
-		valueType := value.Type()
 		assignedType := fld.Type()
+		value := reflect.ValueOf(data)
+		if !value.IsValid() {
+			if isNilableKind(assignedType.Kind()) {
+				fld.Set(reflect.Zero(assignedType))
+				return node, nil
+			}
+			return node, fmt.Errorf("can't set null value to field %s with type %v: %w", nm, assignedType, ErrPointer)
+		}
+		valueType := value.Type()
 
 		if !valueType.AssignableTo(assignedType) {
 			return node, fmt.Errorf("can't set value with type %T to field %s with type %v: %w", data, nm, assignedType, ErrPointer)
@@ -589,8 +605,15 @@ func setSingleImpl(node, data any, decodedToken string, nameProvider NameProvide
 			//
 			// We rebind in place when the slice is reachable via an addressable ancestor; otherwise we
 			// return the new slice header for the parent (or the public Set) to rebind.
-			value := reflect.ValueOf(data)
 			elemType := rValue.Type().Elem()
+			value := reflect.ValueOf(data)
+			if !value.IsValid() {
+				if isNilableKind(elemType.Kind()) {
+					value = reflect.Zero(elemType)
+				} else {
+					return node, fmt.Errorf("can't append null value to slice of %v: %w", elemType, ErrPointer)
+				}
+			}
 			if !value.Type().AssignableTo(elemType) {
 				return node, fmt.Errorf("can't append value of type %T to slice of %v: %w", data, elemType, ErrPointer)
 			}
@@ -617,9 +640,16 @@ func setSingleImpl(node, data any, decodedToken string, nameProvider NameProvide
 			return node, fmt.Errorf("can't set slice index %s to %v: %w", decodedToken, data, ErrPointer)
 		}
 
-		value := reflect.ValueOf(data)
-		valueType := value.Type()
 		assignedType := elem.Type()
+		value := reflect.ValueOf(data)
+		if !value.IsValid() {
+			if isNilableKind(assignedType.Kind()) {
+				elem.Set(reflect.Zero(assignedType))
+				return node, nil
+			}
+			return node, fmt.Errorf("can't set null value to slice element %d with type %v: %w", tokenIndex, assignedType, ErrPointer)
+		}
+		valueType := value.Type()
 
 		if !valueType.AssignableTo(assignedType) {
 			return node, fmt.Errorf("can't set value with type %T to slice element %d with type %v: %w", data, tokenIndex, assignedType, ErrPointer)

@@ -1179,6 +1179,78 @@ func TestInternalEdgeCases(t *testing.T) {
 	})
 }
 
+func TestSetSingleImplHandlesNilData(t *testing.T) {
+	t.Parallel()
+
+	t.Run("set struct field to nil when field type is nilable", func(t *testing.T) {
+		type doc struct {
+			Value any `json:"value"`
+		}
+
+		p, err := New("/value")
+		require.NoError(t, err)
+
+		input := &doc{Value: "x"}
+		_, err = p.Set(input, nil)
+		require.NoError(t, err)
+		require.Nil(t, input.Value)
+	})
+
+	t.Run("set struct field to nil when field type is not nilable returns error", func(t *testing.T) {
+		type doc struct {
+			Value string `json:"value"`
+		}
+
+		p, err := New("/value")
+		require.NoError(t, err)
+
+		input := &doc{Value: "x"}
+		_, err = p.Set(input, nil)
+		require.Error(t, err)
+		require.ErrorContains(t, err, `can't set null value to field Value with type string`)
+	})
+
+	t.Run("append nil to []any", func(t *testing.T) {
+		p, err := New("/-")
+		require.NoError(t, err)
+
+		doc := []any{"a"}
+		_, err = p.Set(&doc, nil)
+		require.NoError(t, err)
+		require.Equal(t, []any{"a", nil}, doc)
+	})
+
+	t.Run("append nil to []int returns error", func(t *testing.T) {
+		p, err := New("/-")
+		require.NoError(t, err)
+
+		doc := []int{1}
+		_, err = p.Set(&doc, nil)
+		require.Error(t, err)
+		require.ErrorContains(t, err, `can't append null value to slice of int`)
+	})
+
+	t.Run("set nil into []any element", func(t *testing.T) {
+		p, err := New("/0")
+		require.NoError(t, err)
+
+		doc := []any{"a", "b"}
+		_, err = p.Set(&doc, nil)
+		require.NoError(t, err)
+		require.Equal(t, []any{nil, "b"}, doc)
+	})
+
+	t.Run("set nil into []int element returns error", func(t *testing.T) {
+		p, err := New("/0")
+		require.NoError(t, err)
+
+		doc := []int{1, 2}
+		_, err = p.Set(&doc, nil)
+		require.Error(t, err)
+		require.ErrorContains(t, err, `can't set null value to slice element 0 with type int`)
+	})
+}
+
 func TestSetIntermediateErrors(t *testing.T) {
 	t.Parallel()
 
