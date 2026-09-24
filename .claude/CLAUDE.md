@@ -78,3 +78,6 @@ similarly named `github.com/go-openapi/swag/jsonname`.
 
 See `.claude/rules/` for contribution, linting, go and technical-writing conventions.
 Format with `golangci-lint fmt`, and check a change with `golangci-lint run --new-from-rev master`.
+
+Tests run with `-race`. CI runs `{ubuntu, macos, windows} x {stable, oldstable}`, via the shared
+`go-openapi/ci-workflows/.github/workflows/go-test.yml`.
