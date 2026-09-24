@@ -39,8 +39,8 @@ func NewNameProvider() *NameProvider {
 }
 
 func buildnameIndex(tpe reflect.Type, idx, reverseIdx map[string]string) {
-	for i := range tpe.NumField() {
-		targetDes := tpe.Field(i)
+	for targetDes := range tpe.Fields() {
+		targetDes := targetDes
 
 		if targetDes.PkgPath != "" { // unexported
 			continue
