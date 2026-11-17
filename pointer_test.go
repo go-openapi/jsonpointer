@@ -1501,3 +1501,23 @@ func TestSetMapValues(t *testing.T) {
 		require.Nil(t, value)
 	})
 }
+
+func TestSetPointerToNilMap(t *testing.T) {
+	t.Parallel()
+
+	p, err := New("/key")
+	require.NoError(t, err)
+
+	var document map[string]any
+
+	require.NotPanics(t, func() {
+		_, err = p.Set(&document, 1)
+	})
+	require.Error(t, err)
+	require.ErrorIs(t, err, ErrPointer)
+
+	require.NotPanics(t, func() {
+		_, err = SetForToken(&document, "key", 1)
+	})
+	require.Error(t, err)
+}
